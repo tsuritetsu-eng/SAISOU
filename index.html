@@ -11,7 +11,7 @@
 #hud{position:fixed;inset:0;pointer-events:none;color:#fff;text-shadow:0 2px 5px #000}
 .top{position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
 .panel{background:#101820bb;border:1px solid #ffffff30;border-radius:12px;padding:9px 12px;backdrop-filter:blur(8px)}
-#title{font-weight:800;letter-spacing:.12em;font-size:14px}#stats{font-size:12px;line-height:1.7}
+#title{font-weight:800;letter-spacing:.12em;font-size:14px}#stats{font-size:12px;line-height:1.7}.speed-track{height:7px;margin-top:5px;width:160px;max-width:42vw;background:#ffffff35;border-radius:99px;overflow:hidden}.speed-track div{height:100%;width:0%;background:linear-gradient(90deg,#75c9a2,#e7c36b,#e87955);border-radius:99px;transition:width .08s linear}
 #warning{position:absolute;top:23%;left:50%;transform:translateX(-50%);font-weight:900;letter-spacing:.18em;color:#ffb2a2;font-size:clamp(16px,4vw,28px);opacity:0;transition:opacity .2s}
 #help{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);font-size:11px;white-space:nowrap;color:#e5e5e5;background:#101820aa;padding:7px 10px;border-radius:10px}
 #buttons{position:absolute;right:12px;top:86px;display:flex;gap:8px;pointer-events:auto}
@@ -29,7 +29,7 @@ button{border:1px solid #ffffff55;background:#182630dd;color:white;border-radius
 <div id="game"></div>
 <div id="hud">
   <div class="top">
-    <div class="panel"><div id="title">祭走 - SAISOU</div><div id="stats">速度 0 km/h<br>閻魔との距離 100 m</div></div>
+    <div class="panel"><div id="title">祭走 - SAISOU</div><div id="stats">速度 0 km/h<br>閻魔との距離 34 m</div><div class="speed-track"><div id="speedFill"></div></div></div>
     <div class="panel" id="status">試作コース：古都・宵町</div>
   </div>
   <div id="warning">閻魔が迫っている！</div>
@@ -152,13 +152,16 @@ makeStreetObstacle(2.6,42,"crate");
 const float=new THREE.Group();scene.add(float);
 box(float,0,.1,0,3.1,.35,4.8,darkWood);
 for(const x of [-1.18,1.18])for(const z of [-1.45,1.45]){const wheel=new THREE.Mesh(new THREE.CylinderGeometry(.62,.62,.28,24),darkWood);wheel.rotation.z=Math.PI/2;wheel.position.set(x,.0,z);wheel.castShadow=true;float.add(wheel);const hub=new THREE.Mesh(new THREE.CylinderGeometry(.17,.17,.32,16),gold);hub.rotation.z=Math.PI/2;hub.position.copy(wheel.position);float.add(hub)}
-box(float,0,1.15,0,2.25,1.65,2.8,wood);box(float,0,2.15,0,2.65,.22,3.2,gold);
-for(let x=-1;x<=1;x+=2){box(float,x*.9,3.15,0,.22,2,.22,darkWood);box(float,x*.9,4.2,0,.42,.25,.42,gold)}
-const topRoof=box(float,0,4.25,0,3.5,.32,3.8,red);topRoof.rotation.z=.04;
-box(float,0,4.75,0,.45,.8,.45,gold);
-const floatBody=world.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setTranslation(0,1.8,22).setLinearDamping(1.2).setAngularDamping(3).setCanSleep(false));
-world.createCollider(RAPIER.ColliderDesc.cuboid(1.45,1.25,2.25).setMass(7).setFriction(.9),floatBody);
-floatBody.setEnabledRotations(false,true,false,true);
+const floatUpper=new THREE.Group();floatUpper.position.y=.25;float.add(floatUpper);
+box(floatUpper,0,.90,0,2.25,1.65,2.8,wood);box(floatUpper,0,1.90,0,2.65,.22,3.2,gold);
+for(let x=-1;x<=1;x+=2){box(floatUpper,x*.9,2.90,0,.22,2,.22,darkWood);box(floatUpper,x*.9,3.95,0,.42,.25,.42,gold)}
+const topRoof=box(floatUpper,0,4.00,0,3.5,.32,3.8,red);topRoof.rotation.z=.04;
+box(floatUpper,0,4.50,0,.45,.8,.45,gold);
+const floatBody=world.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setTranslation(0,1.8,22).setLinearDamping(0).setAngularDamping(0).setCanSleep(false));
+world.createCollider(RAPIER.ColliderDesc.cuboid(1.45,1.25,2.25).setMass(7).setFriction(.8),floatBody);
+floatBody.setEnabledRotations(false,true,false,true);floatBody.setGravityScale(0,true);
+let driveSpeed=0,driveYaw=0,sideSlip=0,bodyLean=0;
+const MAX_SPEED=18.5;
 // simple Enma pursuer, stylized rather than graphic
 const demon=new THREE.Group();scene.add(demon);
 const demonMat=mat(0x3a171b), hornMat=mat(0xe0b68a), eyeMat=new THREE.MeshBasicMaterial({color:0xff2c16});
@@ -168,11 +171,10 @@ for(const x of [-.38,.38]){const eye=new THREE.Mesh(new THREE.SphereGeometry(.13
 box(demon,0,3.1,.95,1.2,.24,.15,mat(0xb18c3e));
 const worldMap={};
 let chaseDistance=34,camMode=0,started=false,gameOver=false,elapsed=0,shake=0;
-const keys={};addEventListener('keydown',e=>{keys[e.code]=true;if(e.code==='KeyC')toggleCamera()});addEventListener('keyup',e=>keys[e.code]=false);
-document.querySelectorAll('.touchbtn').forEach(b=>{const k=b.dataset.key;b.addEventListener('pointerdown',e=>{e.preventDefault();keys[k]=true});['pointerup','pointercancel','pointerleave'].forEach(ev=>b.addEventListener(ev,()=>keys[k]=false))});
+const keys={};addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();keys[e.code]=true;if(e.code==='KeyC')toggleCamera()});addEventListener('keyup',e=>{keys[e.code]=false});addEventListener('blur',()=>{for(const k in keys)keys[k]=false});
 function toggleCamera(){camMode=(camMode+1)%3;document.querySelector('#camera').textContent=['視点：追尾','視点：近距離','視点：一人称'][camMode]}
 document.querySelector('#camera').onclick=toggleCamera;
-function reset(){floatBody.setTranslation({x:0,y:1.8,z:22},true);floatBody.setLinvel({x:0,y:0,z:-0.1},true);floatBody.setAngvel({x:0,y:0,z:0},true);float.rotation.set(0,0,0);chaseDistance=34;elapsed=0;gameOver=false;demon.position.set(0,0,56);document.querySelector('#overlay').style.display='none';started=true}
+function reset(){driveSpeed=0;driveYaw=0;sideSlip=0;bodyLean=0;floatBody.setTranslation({x:0,y:1.8,z:22},true);floatBody.setLinvel({x:0,y:0,z:0},true);floatBody.setAngvel({x:0,y:0,z:0},true);floatBody.setRotation({x:0,y:0,z:0,w:1},true);float.rotation.set(0,0,0);floatUpper.rotation.set(0,0,0);chaseDistance=34;elapsed=0;gameOver=false;demon.position.set(0,0,56);document.querySelector('#overlay').style.display='none';document.querySelector('#overlay h1').textContent='祭走';document.querySelector('#start').textContent='出走する';started=true}
 document.querySelector('#reset').onclick=reset;document.querySelector('#start').onclick=reset;
 demon.position.set(0,0,56);
 const clock=new THREE.Clock();
@@ -181,22 +183,29 @@ function frame(){
  requestAnimationFrame(frame);const dt=Math.min(clock.getDelta(),.033);
  if(started&&!gameOver){
   elapsed+=dt;
-  const p=floatBody.translation(),v=floatBody.linvel(),rot=floatBody.rotation();
-  const forward=new THREE.Vector3(0,0,-1).applyQuaternion(new THREE.Quaternion(rot.x,rot.y,rot.z,rot.w));
-  const speed=Math.hypot(v.x,v.z);
+  const p=floatBody.translation();
   const steer=(keys.ArrowLeft||keys.KeyA?-1:0)+(keys.ArrowRight||keys.KeyD?1:0);
   const throttle=keys.ArrowUp||keys.KeyW,brake=keys.Space||keys.ArrowDown||keys.KeyS;
-  if(throttle)floatBody.applyImpulse({x:forward.x*19*dt,y:0,z:forward.z*19*dt},true);
-  if(brake)floatBody.applyImpulse({x:-v.x*2.8*dt,y:0,z:-v.z*2.8*dt},true);
-  floatBody.applyTorqueImpulse({x:0,y:-steer*(.8+Math.min(speed*.055,1.5))*dt,z:0},true);
-  // modest lateral grip; steering is intentionally momentum-based
-  const right=new THREE.Vector3(1,0,0).applyQuaternion(new THREE.Quaternion(rot.x,rot.y,rot.z,rot.w));
-  const lateral=v.x*right.x+v.z*right.z;
-  floatBody.applyImpulse({x:-right.x*lateral*1.3*dt,y:0,z:-right.z*lateral*1.3*dt},true);
+  if(throttle)driveSpeed=Math.min(MAX_SPEED,driveSpeed+10.5*dt);
+  else driveSpeed=Math.max(0,driveSpeed-1.15*dt);
+  if(brake)driveSpeed=Math.max(0,driveSpeed-19*dt);
+  const steerAuthority=.18+Math.min(driveSpeed/MAX_SPEED,1)*.92;
+  driveYaw+=steer*steerAuthority*1.35*dt*(driveSpeed>.15?1:0);
+  const forwardX=-Math.sin(driveYaw),forwardZ=-Math.cos(driveYaw);
+  const rightX=Math.cos(driveYaw),rightZ=-Math.sin(driveYaw);
+  const targetSlip=steer*driveSpeed*.10;
+  sideSlip+=(targetSlip-sideSlip)*Math.min(1,dt*2.8);
+  const vx=forwardX*driveSpeed+rightX*sideSlip;
+  const vz=forwardZ*driveSpeed+rightZ*sideSlip;
+  floatBody.setLinvel({x:vx,y:0,z:vz},true);
+  floatBody.setRotation({x:0,y:Math.sin(driveYaw/2),z:0,w:Math.cos(driveYaw/2)},true);
   world.timestep=dt;world.step();
   const np=floatBody.translation(),nr=floatBody.rotation();
-  
-float.position.set(np.x,np.y-.45,np.z);float.quaternion.set(nr.x,nr.y,nr.z,nr.w);
+  float.position.set(np.x,np.y-.45,np.z);float.quaternion.set(nr.x,nr.y,nr.z,nr.w);
+  const targetLean=-steer*Math.min(.30,.035+driveSpeed*.014);
+  bodyLean+=(targetLean-bodyLean)*Math.min(1,dt*4.5);
+  floatUpper.rotation.z=bodyLean;
+  const v=floatBody.linvel(),speed=driveSpeed;
   // Pedestrians cross at a measured pace. The player must steer around them.
   for(const h of hazardMeshes){
     if(h.kind==="person"){
@@ -225,13 +234,13 @@ float.position.set(np.x,np.y-.45,np.z);float.quaternion.set(nr.x,nr.y,nr.z,nr.w)
   demon.position.x+=(np.x-demon.position.x)*Math.min(1,dt*1.4);demon.position.z+=(targetZ-demon.position.z)*Math.min(1,dt*2.0);
   demon.rotation.y=Math.PI;
   const danger=chaseDistance<15;document.querySelector('#warning').style.opacity=chaseDistance<19?1:0; if(chaseDistance>=19) document.querySelector('#status').textContent="試作コース：古都・宵町";
-  document.querySelector('#stats').innerHTML=`速度 ${Math.round(speed*3.6)} km/h<br>閻魔との距離 ${Math.round(chaseDistance)} m`;
+  document.querySelector('#stats').innerHTML=`速度 ${Math.round(speed*3.6)} km/h<br>閻魔との距離 ${Math.round(chaseDistance)} m`;document.querySelector('#speedFill').style.width=`${Math.min(100,speed/MAX_SPEED*100)}%`;
   if(chaseDistance<=2){gameOver=true;document.querySelector('#overlay').style.display='flex';document.querySelector('#overlay h1').textContent='捕まった';document.querySelector('#overlay p').innerHTML='閻魔に追いつかれてしまった。<br>もう一度、古都を駆け抜けよう。';document.querySelector('#start').textContent='再挑戦する'}
   if(Math.abs(np.x)>78||Math.abs(np.z)>78){floatBody.setLinvel({x:v.x*.7,y:v.y,z:v.z*.7},true)}
   shake=danger?Math.sin(elapsed*23)*.04:0;
  }
  const p=floatBody.translation();
- const heading=new THREE.Vector3(0,0,-1).applyQuaternion(new THREE.Quaternion(floatBody.rotation().x,floatBody.rotation().y,floatBody.rotation().z,floatBody.rotation().w));
+ const heading=new THREE.Vector3(-Math.sin(driveYaw),0,-Math.cos(driveYaw));
  let desired;
  if(camMode===0)desired=new THREE.Vector3(p.x-heading.x*10, p.y+6.5, p.z-heading.z*10);
  else if(camMode===1)desired=new THREE.Vector3(p.x-heading.x*5.2,p.y+3.3,p.z-heading.z*5.2);
