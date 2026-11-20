@@ -52,11 +52,14 @@ await RAPIER.init();
 const mount=document.querySelector('#game');
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x9bb2bb);scene.fog=new THREE.Fog(0x9bb2bb,38,150);
 const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.1,250);
-const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;mount.appendChild(renderer.domElement);
-scene.add(new THREE.HemisphereLight(0xdcecff,0x594637,2));
-const sun=new THREE.DirectionalLight(0xffe0b2,2.4);sun.position.set(-25,45,20);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);scene.add(sun);
+const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,1.65));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.12;mount.appendChild(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xdcecff,0x594637,1.35));
+scene.add(new THREE.AmbientLight(0x8b9aa3,.28));
+const sun=new THREE.DirectionalLight(0xffd6a0,3.1);sun.position.set(-25,45,20);sun.castShadow=true;sun.shadow.mapSize.set(3072,3072);sun.shadow.camera.left=-90;sun.shadow.camera.right=90;sun.shadow.camera.top=90;sun.shadow.camera.bottom=-90;sun.shadow.bias=-.00018;sun.shadow.normalBias=.025;sun.shadow.radius=3;scene.add(sun);
 const mat=(c,r=.85,m=0)=>new THREE.MeshStandardMaterial({color:c,roughness:r,metalness:m});
-const roadMat=mat(0x555b5c), stone=mat(0x777b76), wood=mat(0x62432f), darkWood=mat(0x38291f), plaster=mat(0xd1c4a8), roof=mat(0x303b40), red=mat(0x8e3025), gold=mat(0xc59a4d,.45,.5);
+function surfaceTexture(base,kind='noise'){const c=document.createElement('canvas');c.width=c.height=512;const x=c.getContext('2d');x.fillStyle=base;x.fillRect(0,0,512,512);for(let i=0;i<8500;i++){const v=Math.random()*34-17;x.fillStyle=`rgba(${v>0?255:0},${v>0?255:0},${v>0?255:0},${Math.abs(v)/500})`;x.fillRect(Math.random()*512,Math.random()*512,Math.random()*4+1,Math.random()*3+1)}if(kind==='wood'){x.strokeStyle='rgba(25,12,5,.16)';for(let i=0;i<28;i++){const y=Math.random()*512;x.beginPath();x.moveTo(0,y);x.bezierCurveTo(160,y-8,330,y+9,512,y);x.stroke()}}if(kind==='stone'){x.strokeStyle='rgba(20,25,25,.2)';for(let y=0;y<512;y+=64){x.beginPath();x.moveTo(0,y);x.lineTo(512,y);x.stroke()}for(let y=0;y<512;y+=64)for(let xx=(y/64%2)*48;xx<512;xx+=96){x.beginPath();x.moveTo(xx,y);x.lineTo(xx,y+64);x.stroke()}}const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;return t}
+const roadMat=mat(0x777b7c,.98), stone=mat(0xaaa69a,.95), wood=mat(0x765039,.82), darkWood=mat(0x38291f,.8), plaster=mat(0xe0d3b9,.95), roof=mat(0x303b40,.9), red=mat(0x8e3025,.72), gold=mat(0xc59a4d,.38,.62);
+stone.map=surfaceTexture('#a39e91','stone');roadMat.map=surfaceTexture('#505657','stone');wood.map=surfaceTexture('#765039','wood');plaster.map=surfaceTexture('#d9ccb2');
 function box(parent,x,y,z,sx,sy,sz,material){const o=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),material);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;parent.add(o);return o}
 const ground=box(scene,0,-.38,0,170,.7,170,stone);
 const world=new RAPIER.World({x:0,y:-9.81,z:0});
@@ -72,14 +75,24 @@ function building(x,z,w,d,h,variant=0){
  const g=new THREE.Group();g.position.set(x,0,z);scene.add(g);
  box(g,0,h/2,0,w,h,d,variant%2?plaster:wood);
  box(g,0,h+.25,0,w+1,.5,d+1,roof);
- box(g,0,h*.45,d/2+.035,w*.72,h*.36,.08,darkWood);
- for(let i=-1;i<=1;i++)box(g,i*w*.27,h*.45,d/2+.09,.09,h*.42,.12,wood);
- box(g,0,h*.82,d/2+.08,w*.8,.16,.14,darkWood);
+ // Instanced ceramic roof tiles: dense detail without hundreds of draw calls.
+ const tileGeo=new THREE.CylinderGeometry(.145,.145,d+1.12,10,1);tileGeo.rotateX(Math.PI/2);
+ const tiles=new THREE.InstancedMesh(tileGeo,mat(0x465258,.78,.12),Math.max(5,Math.floor((w+1)/.27)));const dummy=new THREE.Object3D();
+ for(let i=0;i<tiles.count;i++){dummy.position.set(-w/2-.35+(i+.5)*(w+1)/tiles.count,h+.56,0);dummy.updateMatrix();tiles.setMatrixAt(i,dummy.matrix)}tiles.castShadow=true;tiles.receiveShadow=true;g.add(tiles);
+ box(g,0,h+.68,0,.38,.28,d+1.35,darkWood);box(g,0,h+.03,d/2+.56,w+1.25,.18,.42,darkWood);
+ for(const sx of [-1,1])box(g,sx*(w/2-.18),h/2,d/2+.075,.22,h,.18,darkWood);
+ box(g,0,h*.45,d/2+.105,w*.72,h*.36,.12,darkWood);
+ const ww=w*.68,wh=h*.32;box(g,0,h*.45,d/2+.18,ww,wh,.045,plaster);
+ for(let i=-4;i<=4;i++)box(g,i*ww/8,h*.45,d/2+.215,.045,wh,.06,darkWood);
+ for(let i=-2;i<=2;i++)box(g,0,h*.45+i*wh/5,d/2+.215,ww,.045,.06,darkWood);
+ box(g,0,h*.82,d/2+.12,w*.82,.18,.18,darkWood);
+ const door=box(g,-w*.28,h*.25,d/2+.13,w*.22,h*.5,.08,darkWood);
+ for(let i=0;i<4;i++)box(g,-w*.28-w*.09+i*w*.06,h*.25,d/2+.18,.025,h*.46,.035,gold);
  fixedBox(x,h/2,z,w/2,h/2,d/2);
- // eaves and lantern
  box(g,0,h*.78,d/2+.5,w+.8,.14,.65,darkWood);
- const lantern=box(g,w*.34,2.1,d/2+.62,.42,.62,.35,red);
- box(g,w*.34,2.45,d/2+.62,.52,.1,.43,gold);
+ for(let xx=-w/2+.45;xx<w/2;xx+=1.2)box(g,xx,h*.78,d/2+.43,.12,.48,.12,darkWood);
+ box(g,w*.34,2.1,d/2+.62,.42,.62,.35,red);box(g,w*.34,2.45,d/2+.62,.52,.1,.43,gold);
+ const glow=new THREE.PointLight(0xffb96e,.55,5,2);glow.position.set(w*.34,2.15,d/2+.9);g.add(glow);
 }
 const blocks=[
 [-11,-12,9,10,7], [11,-12,9,10,8],[-11,12,9,10,7],[11,12,9,10,8],
@@ -89,7 +102,7 @@ const blocks=[
 [-68,0,15,22,8],[68,0,15,22,9]
 ];
 blocks.forEach((b,i)=>building(...b,i));
-function lantern(x,z){const pole=box(scene,x,1.7,z,.12,3.4,.12,darkWood);box(scene,x,3.5,z,.65,.7,.65,red);box(scene,x,3.9,z,.8,.12,.8,gold)}
+function lantern(x,z){box(scene,x,1.7,z,.16,3.4,.16,darkWood);box(scene,x,3.5,z,.72,.72,.72,red);box(scene,x,3.9,z,.9,.14,.9,gold);const glow=new THREE.PointLight(0xffb76b,.8,8,2);glow.position.set(x,3.5,z);scene.add(glow)}
 for(let z=-60;z<=60;z+=15){lantern(-5.7,z);lantern(5.7,z)}
 // shrine gate in the distance
 const gate=new THREE.Group();scene.add(gate);gate.position.set(0,0,-69);
@@ -154,8 +167,11 @@ box(float,0,.1,0,3.1,.35,4.8,darkWood);
 for(const x of [-1.18,1.18])for(const z of [-1.45,1.45]){const wheel=new THREE.Mesh(new THREE.CylinderGeometry(.62,.62,.28,24),darkWood);wheel.rotation.z=Math.PI/2;wheel.position.set(x,.0,z);wheel.castShadow=true;float.add(wheel);const hub=new THREE.Mesh(new THREE.CylinderGeometry(.17,.17,.32,16),gold);hub.rotation.z=Math.PI/2;hub.position.copy(wheel.position);float.add(hub)}
 const floatUpper=new THREE.Group();floatUpper.position.y=.25;float.add(floatUpper);
 box(floatUpper,0,.90,0,2.25,1.65,2.8,wood);box(floatUpper,0,1.90,0,2.65,.22,3.2,gold);
-for(let x=-1;x<=1;x+=2){box(floatUpper,x*.9,2.90,0,.22,2,.22,darkWood);box(floatUpper,x*.9,3.95,0,.42,.25,.42,gold)}
+for(let x=-1;x<=1;x+=2){box(floatUpper,x*.9,2.90,0,.22,2,.22,darkWood);box(floatUpper,x*.9,3.95,0,.42,.25,.42,gold);box(floatUpper,x*.9,2.9,1.43,.12,1.9,.12,gold);box(floatUpper,x*.9,2.9,-1.43,.12,1.9,.12,gold)}
+for(let x=-1.35;x<=1.36;x+=.3){const tile=new THREE.Mesh(new THREE.CylinderGeometry(.12,.12,3.55,12),mat(0x9b3428,.72));tile.rotation.x=Math.PI/2;tile.position.set(x,4.22,0);tile.castShadow=true;floatUpper.add(tile)}
 const topRoof=box(floatUpper,0,4.00,0,3.5,.32,3.8,red);topRoof.rotation.z=.04;
+box(floatUpper,0,4.28,0,3.75,.16,.22,gold);
+for(const x of [-1.7,1.7])for(const z of [-1.8,1.8]){const fin=new THREE.Mesh(new THREE.SphereGeometry(.17,20,16),gold);fin.position.set(x,4.25,z);floatUpper.add(fin)}
 box(floatUpper,0,4.50,0,.45,.8,.45,gold);
 const floatBody=world.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setTranslation(0,1.8,22).setLinearDamping(0).setAngularDamping(0).setCanSleep(false));
 world.createCollider(RAPIER.ColliderDesc.cuboid(1.45,1.25,2.25).setMass(7).setFriction(.8),floatBody);
@@ -179,6 +195,9 @@ document.querySelector('#reset').onclick=reset;document.querySelector('#start').
 demon.position.set(0,0,56);
 const clock=new THREE.Clock();
 const tmp=new THREE.Vector3();
+// Baked-looking individual stone paving, batched for mobile performance.
+const pavingGeo=new THREE.BoxGeometry(.82,.035,.42),pavingMat=mat(0x777a76,.96);const paving=new THREE.InstancedMesh(pavingGeo,pavingMat,650);const pavingDummy=new THREE.Object3D();let pavingN=0;
+for(let z=-72;z<75;z+=.72)for(let x=-4.1;x<=4.1;x+=.94){if(Math.random()<.14)continue;pavingDummy.position.set(x,.055,z);pavingDummy.rotation.y=(Math.random()-.5)*.035;pavingDummy.scale.set(.86+Math.random()*.16,1,.9+Math.random()*.18);pavingDummy.updateMatrix();if(pavingN<650)paving.setMatrixAt(pavingN++,pavingDummy.matrix)}paving.count=pavingN;paving.receiveShadow=true;scene.add(paving);
 function frame(){
  requestAnimationFrame(frame);const dt=Math.min(clock.getDelta(),.033);
  if(started&&!gameOver){
