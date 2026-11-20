@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>祭走 - SAISOU | 3D Prototype</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,"Noto Sans JP",sans-serif}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#101820}
+#game{position:fixed;inset:0}canvas{display:block}
+#hud{position:fixed;inset:0;pointer-events:none;color:#fff;text-shadow:0 2px 5px #000}
+.top{position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.panel{background:#101820bb;border:1px solid #ffffff30;border-radius:12px;padding:9px 12px;backdrop-filter:blur(8px)}
+#title{font-weight:800;letter-spacing:.12em;font-size:14px}#stats{font-size:12px;line-height:1.7}
+#warning{position:absolute;top:23%;left:50%;transform:translateX(-50%);font-weight:900;letter-spacing:.18em;color:#ffb2a2;font-size:clamp(16px,4vw,28px);opacity:0;transition:opacity .2s}
+#help{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);font-size:11px;white-space:nowrap;color:#e5e5e5;background:#101820aa;padding:7px 10px;border-radius:10px}
+#buttons{position:absolute;right:12px;top:86px;display:flex;gap:8px;pointer-events:auto}
+button{border:1px solid #ffffff55;background:#182630dd;color:white;border-radius:10px;padding:10px 12px;font-weight:700}
+#touch{position:absolute;bottom:24px;left:12px;right:12px;display:none;justify-content:space-between;pointer-events:auto}
+.pad{display:flex;gap:8px}.touchbtn{width:62px;height:62px;border-radius:18px;background:#15232ccc;border:1px solid #ffffff55;font-size:20px;touch-action:none}
+#overlay{position:fixed;inset:0;background:#071018dd;display:flex;align-items:center;justify-content:center;color:#fff;padding:22px;text-align:center}
+#overlay .card{max-width:520px;background:#172630;border:1px solid #ffffff35;border-radius:20px;padding:24px}
+#overlay h1{letter-spacing:.18em;margin:0 0 8px}#overlay p{line-height:1.8;color:#d3dce2;font-size:14px}
+#start{background:#b84a31;border:0;padding:13px 24px;font-size:15px}
+@media(max-width:700px){#touch{display:flex}#help{bottom:100px}#buttons{top:auto;bottom:100px;right:12px}.top{top:8px;left:8px;right:8px}.panel{padding:7px 9px}}
+</style>
+</head>
+<body>
+<div id="game"></div>
+<div id="hud">
+  <div class="top">
+    <div class="panel"><div id="title">祭走 - SAISOU</div><div id="stats">速度 0 km/h<br>閻魔との距離 100 m</div></div>
+    <div class="panel" id="status">試作コース：古都・宵町</div>
+  </div>
+  <div id="warning">閻魔が迫っている！</div>
+  <div id="buttons"><button id="camera">視点：追尾</button><button id="reset">リセット</button></div>
+  <div id="help">WASD / 矢印：操作　Space：ブレーキ　C：視点切替</div>
+  <div id="touch">
+    <div class="pad"><button class="touchbtn" data-key="ArrowLeft">◀</button><button class="touchbtn" data-key="ArrowRight">▶</button></div>
+    <div class="pad"><button class="touchbtn" data-key="Space">■</button><button class="touchbtn" data-key="ArrowUp">▲</button></div>
+  </div>
+</div>
+<div id="overlay"><div class="card"><h1>祭走</h1><div style="letter-spacing:.2em;color:#d79b64">SAISOU / 3D PHYSICS PROTOTYPE</div>
+<p>京都風の古都を、山車を操って駆け抜けよう。<br>建物にぶつからないように進み、背後から迫る閻魔を振り切れ。</p>
+<p>この試作では、山車の慣性・旋回の遅れ・建物衝突に加え、横断する人や路上の障害物を避ける走行を体験できます。<br>画面右上のボタン、または C キーでカメラを切り替えられます。</p>
+<button id="start">出走する</button></div></div>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js';
+import RAPIER from 'https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.14.0/rapier.es.js';
+
+await RAPIER.init();
+const mount=document.querySelector('#game');
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x9bb2bb);scene.fog=new THREE.Fog(0x9bb2bb,38,150);
+const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.1,250);
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;mount.appendChild(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xdcecff,0x594637,2));
+const sun=new THREE.DirectionalLight(0xffe0b2,2.4);sun.position.set(-25,45,20);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);scene.add(sun);
+const mat=(c,r=.85,m=0)=>new THREE.MeshStandardMaterial({color:c,roughness:r,metalness:m});
+const roadMat=mat(0x555b5c), stone=mat(0x777b76), wood=mat(0x62432f), darkWood=mat(0x38291f), plaster=mat(0xd1c4a8), roof=mat(0x303b40), red=mat(0x8e3025), gold=mat(0xc59a4d,.45,.5);
+function box(parent,x,y,z,sx,sy,sz,material){const o=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),material);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;parent.add(o);return o}
+const ground=box(scene,0,-.38,0,170,.7,170,stone);
+const world=new RAPIER.World({x:0,y:-9.81,z:0});
+function fixedBox(x,y,z,hx,hy,hz){const b=world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(x,y,z));world.createCollider(RAPIER.ColliderDesc.cuboid(hx,hy,hz),b);}
+// road layout: main avenue plus cross streets, all within a compact town block
+const roads=[{x:0,z:0,w:9,d:150},{x:0,z:0,w:150,d:9},{x:28,z:24,w:7,d:48},{x:-30,z:-25,w:7,d:50},{x:48,z:-28,w:7,d:45}];
+for(const r of roads){box(scene,r.x,.005,r.z,r.w,.04,r.d,roadMat)}
+// roadside machiya blocks, deliberately leave openings at intersections
+function building(x,z,w,d,h,variant=0){
+ const g=new THREE.Group();g.position.set(x,0,z);scene.add(g);
+ box(g,0,h/2,0,w,h,d,variant%2?plaster:wood);
+ box(g,0,h+.25,0,w+1,.5,d+1,roof);
+ box(g,0,h*.45,d/2+.035,w*.72,h*.36,.08,darkWood);
+ for(let i=-1;i<=1;i++)box(g,i*w*.27,h*.45,d/2+.09,.09,h*.42,.12,wood);
+ box(g,0,h*.82,d/2+.08,w*.8,.16,.14,darkWood);
+ fixedBox(x,h/2,z,w/2,h/2,d/2);
+ // eaves and lantern
+ box(g,0,h*.78,d/2+.5,w+.8,.14,.65,darkWood);
+ const lantern=box(g,w*.34,2.1,d/2+.62,.42,.62,.35,red);
+ box(g,w*.34,2.45,d/2+.62,.52,.1,.43,gold);
+}
+const blocks=[
+[-11,-12,9,10,7], [11,-12,9,10,8],[-11,12,9,10,7],[11,12,9,10,8],
+[-11,-43,9,18,8],[11,-43,9,18,7],[-11,43,9,18,8],[11,43,9,18,7],
+[-42,-12,18,9,7],[-42,12,18,9,8],[42,12,18,9,7],[42,-12,18,9,8],
+[-42,-43,18,18,8],[42,-43,18,18,9],[-42,43,18,18,7],[42,43,18,18,8],
+[-68,0,15,22,8],[68,0,15,22,9]
+];
+blocks.forEach((b,i)=>building(...b,i));
+function lantern(x,z){const pole=box(scene,x,1.7,z,.12,3.4,.12,darkWood);box(scene,x,3.5,z,.65,.7,.65,red);box(scene,x,3.9,z,.8,.12,.8,gold)}
+for(let z=-60;z<=60;z+=15){lantern(-5.7,z);lantern(5.7,z)}
+// shrine gate in the distance
+const gate=new THREE.Group();scene.add(gate);gate.position.set(0,0,-69);
+box(gate,-3,3,0,.45,6,.45,red);box(gate,3,3,0,.45,6,.45,red);box(gate,0,6.1,0,8,.5,.7,darkWood);box(gate,0,6.7,0,9,.35,1,gold);
+
+// Dynamic street hazards: crossing festival-goers and dropped street objects
+const personMaterials=[mat(0x345b78),mat(0x8d4938),mat(0xd0b58a),mat(0x454b62)];
+const hazardMeshes=[];
+const hazardBodies=[];
+function makePedestrian(x,z,phase=0){
+  const g=new THREE.Group();scene.add(g);
+  const shirt=personMaterials[Math.floor(Math.random()*personMaterials.length)];
+  const body=new THREE.Mesh(new THREE.CapsuleGeometry(.24,.72,4,8),shirt);
+  body.position.y=1.02;g.add(body);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(.2,12,10),mat(0xd4a17c));
+  head.position.y=1.62;g.add(head);
+  const legMat=mat(0x292c31);
+  for(const sx of [-.13,.13]){
+    const leg=new THREE.Mesh(new THREE.BoxGeometry(.13,.62,.16),legMat);
+    leg.position.set(sx,.38,0);g.add(leg);
+  }
+  g.position.set(x,0,z);
+  const item={group:g,baseX:x,baseZ:z,phase,kind:"person",radius:.48};
+  hazardMeshes.push(item);
+  return item;
+}
+function makeStreetObstacle(x,z,type="crate"){
+  const g=new THREE.Group();scene.add(g);
+  if(type==="barrel"){
+    const barrel=new THREE.Mesh(new THREE.CylinderGeometry(.43,.43,.9,16),mat(0x78502f));
+    barrel.position.y=.45;g.add(barrel);
+    for(const y of [.18,.72]){
+      const band=new THREE.Mesh(new THREE.TorusGeometry(.435,.045,6,18),gold);
+      band.rotation.x=Math.PI/2;band.position.y=y;g.add(band);
+    }
+  }else if(type==="basket"){
+    const basket=new THREE.Mesh(new THREE.CylinderGeometry(.48,.38,.65,12,1,true),mat(0x927044));
+    basket.position.y=.33;g.add(basket);
+  }else{
+    const crate=new THREE.Mesh(new THREE.BoxGeometry(.9,.78,.9),wood);
+    crate.position.y=.39;g.add(crate);
+    const stripe=box(g,0,.39,.456,.12,.78,.025,gold);
+  }
+  g.position.set(x,0,z);
+  const body=world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(x,.42,z));
+  world.createCollider(RAPIER.ColliderDesc.cuboid(.48,.45,.48).setFriction(.8),body);
+  hazardBodies.push(body);
+  hazardMeshes.push({group:g,baseX:x,baseZ:z,phase:0,kind:"obstacle",radius:.7});
+}
+const pedestrians=[
+  makePedestrian(-4.7,4,0),makePedestrian(4.7,-17,1.7),
+  makePedestrian(-4.7,-34,3.2),makePedestrian(4.7,30,4.6)
+];
+makeStreetObstacle(-2.7,-7,"crate");
+makeStreetObstacle(2.8,-25,"barrel");
+makeStreetObstacle(-1.9,18,"basket");
+makeStreetObstacle(2.6,42,"crate");
+
+// float visual group
+const float=new THREE.Group();scene.add(float);
+box(float,0,.1,0,3.1,.35,4.8,darkWood);
+for(const x of [-1.18,1.18])for(const z of [-1.45,1.45]){const wheel=new THREE.Mesh(new THREE.CylinderGeometry(.62,.62,.28,24),darkWood);wheel.rotation.z=Math.PI/2;wheel.position.set(x,.0,z);wheel.castShadow=true;float.add(wheel);const hub=new THREE.Mesh(new THREE.CylinderGeometry(.17,.17,.32,16),gold);hub.rotation.z=Math.PI/2;hub.position.copy(wheel.position);float.add(hub)}
+box(float,0,1.15,0,2.25,1.65,2.8,wood);box(float,0,2.15,0,2.65,.22,3.2,gold);
+for(let x=-1;x<=1;x+=2){box(float,x*.9,3.15,0,.22,2,.22,darkWood);box(float,x*.9,4.2,0,.42,.25,.42,gold)}
+const topRoof=box(float,0,4.25,0,3.5,.32,3.8,red);topRoof.rotation.z=.04;
+box(float,0,4.75,0,.45,.8,.45,gold);
+const floatBody=world.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setTranslation(0,1.8,22).setLinearDamping(1.2).setAngularDamping(3).setCanSleep(false));
+world.createCollider(RAPIER.ColliderDesc.cuboid(1.45,1.25,2.25).setMass(7).setFriction(.9),floatBody);
+floatBody.setEnabledRotations(false,true,false,true);
+// simple Enma pursuer, stylized rather than graphic
+const demon=new THREE.Group();scene.add(demon);
+const demonMat=mat(0x3a171b), hornMat=mat(0xe0b68a), eyeMat=new THREE.MeshBasicMaterial({color:0xff2c16});
+const torso=new THREE.Mesh(new THREE.CapsuleGeometry(1.05,2.2,5,10),demonMat);torso.position.y=2.1;demon.add(torso);
+const head=new THREE.Mesh(new THREE.SphereGeometry(.85,20,16),mat(0x762c25));head.position.y=4.15;demon.add(head);
+for(const x of [-.38,.38]){const eye=new THREE.Mesh(new THREE.SphereGeometry(.13,12,8),eyeMat);eye.position.set(x,4.2,.73);demon.add(eye);const horn=new THREE.Mesh(new THREE.ConeGeometry(.23,1,12),hornMat);horn.position.set(x*1.6,5.1,0);horn.rotation.z=x<0?.25:-.25;demon.add(horn)}
+box(demon,0,3.1,.95,1.2,.24,.15,mat(0xb18c3e));
+const worldMap={};
+let chaseDistance=34,camMode=0,started=false,gameOver=false,elapsed=0,shake=0;
+const keys={};addEventListener('keydown',e=>{keys[e.code]=true;if(e.code==='KeyC')toggleCamera()});addEventListener('keyup',e=>keys[e.code]=false);
+document.querySelectorAll('.touchbtn').forEach(b=>{const k=b.dataset.key;b.addEventListener('pointerdown',e=>{e.preventDefault();keys[k]=true});['pointerup','pointercancel','pointerleave'].forEach(ev=>b.addEventListener(ev,()=>keys[k]=false))});
+function toggleCamera(){camMode=(camMode+1)%3;document.querySelector('#camera').textContent=['視点：追尾','視点：近距離','視点：一人称'][camMode]}
+document.querySelector('#camera').onclick=toggleCamera;
+function reset(){floatBody.setTranslation({x:0,y:1.8,z:22},true);floatBody.setLinvel({x:0,y:0,z:-0.1},true);floatBody.setAngvel({x:0,y:0,z:0},true);float.rotation.set(0,0,0);chaseDistance=34;elapsed=0;gameOver=false;demon.position.set(0,0,56);document.querySelector('#overlay').style.display='none';started=true}
+document.querySelector('#reset').onclick=reset;document.querySelector('#start').onclick=reset;
+demon.position.set(0,0,56);
+const clock=new THREE.Clock();
+const tmp=new THREE.Vector3();
+function frame(){
+ requestAnimationFrame(frame);const dt=Math.min(clock.getDelta(),.033);
+ if(started&&!gameOver){
+  elapsed+=dt;
+  const p=floatBody.translation(),v=floatBody.linvel(),rot=floatBody.rotation();
+  const forward=new THREE.Vector3(0,0,-1).applyQuaternion(new THREE.Quaternion(rot.x,rot.y,rot.z,rot.w));
+  const speed=Math.hypot(v.x,v.z);
+  const steer=(keys.ArrowLeft||keys.KeyA?-1:0)+(keys.ArrowRight||keys.KeyD?1:0);
+  const throttle=keys.ArrowUp||keys.KeyW,brake=keys.Space||keys.ArrowDown||keys.KeyS;
+  if(throttle)floatBody.applyImpulse({x:forward.x*19*dt,y:0,z:forward.z*19*dt},true);
+  if(brake)floatBody.applyImpulse({x:-v.x*2.8*dt,y:0,z:-v.z*2.8*dt},true);
+  floatBody.applyTorqueImpulse({x:0,y:-steer*(.8+Math.min(speed*.055,1.5))*dt,z:0},true);
+  // modest lateral grip; steering is intentionally momentum-based
+  const right=new THREE.Vector3(1,0,0).applyQuaternion(new THREE.Quaternion(rot.x,rot.y,rot.z,rot.w));
+  const lateral=v.x*right.x+v.z*right.z;
+  floatBody.applyImpulse({x:-right.x*lateral*1.3*dt,y:0,z:-right.z*lateral*1.3*dt},true);
+  world.timestep=dt;world.step();
+  const np=floatBody.translation(),nr=floatBody.rotation();
+  
+float.position.set(np.x,np.y-.45,np.z);float.quaternion.set(nr.x,nr.y,nr.z,nr.w);
+  // Pedestrians cross at a measured pace. The player must steer around them.
+  for(const h of hazardMeshes){
+    if(h.kind==="person"){
+      const cross=Math.sin(elapsed*1.05+h.phase);
+      h.group.position.x=h.baseX+cross*2.25;
+      h.group.position.z=h.baseZ+Math.sin(elapsed*.55+h.phase)*.35;
+      h.group.rotation.y=cross>0?Math.PI/2:-Math.PI/2;
+      h.group.children[2].rotation.x=Math.sin(elapsed*5+h.phase)*.22;
+      h.group.children[3].rotation.x=-Math.sin(elapsed*5+h.phase)*.22;
+    }
+    const dx=np.x-h.group.position.x,dz=np.z-h.group.position.z;
+    const near=Math.hypot(dx,dz);
+    if(near<(h.kind==="person"?1.9:1.75)){
+      const impulseScale=h.kind==="person"?0.30:0.52;
+      const nx=dx/(near||1),nz=dz/(near||1);
+      floatBody.applyImpulse({x:nx*impulseScale,y:0,z:nz*impulseScale},true);
+      floatBody.applyImpulse({x:-v.x*.035,y:0,z:-v.z*.035},true);
+      shake=Math.max(shake,.10);
+      if(h.kind==="person") document.querySelector('#status').textContent="人の横断に注意！";
+      else document.querySelector('#status').textContent="路上の障害物に接触！";
+    }
+  }
+
+  // Enma steadily closes in; collisions and low speed make the chase more dangerous
+  const targetZ=np.z+chaseDistance;chaseDistance=Math.max(1.8,chaseDistance-(4.0+Math.max(0,8-speed)*.18)*dt);
+  demon.position.x+=(np.x-demon.position.x)*Math.min(1,dt*1.4);demon.position.z+=(targetZ-demon.position.z)*Math.min(1,dt*2.0);
+  demon.rotation.y=Math.PI;
+  const danger=chaseDistance<15;document.querySelector('#warning').style.opacity=chaseDistance<19?1:0; if(chaseDistance>=19) document.querySelector('#status').textContent="試作コース：古都・宵町";
+  document.querySelector('#stats').innerHTML=`速度 ${Math.round(speed*3.6)} km/h<br>閻魔との距離 ${Math.round(chaseDistance)} m`;
+  if(chaseDistance<=2){gameOver=true;document.querySelector('#overlay').style.display='flex';document.querySelector('#overlay h1').textContent='捕まった';document.querySelector('#overlay p').innerHTML='閻魔に追いつかれてしまった。<br>もう一度、古都を駆け抜けよう。';document.querySelector('#start').textContent='再挑戦する'}
+  if(Math.abs(np.x)>78||Math.abs(np.z)>78){floatBody.setLinvel({x:v.x*.7,y:v.y,z:v.z*.7},true)}
+  shake=danger?Math.sin(elapsed*23)*.04:0;
+ }
+ const p=floatBody.translation();
+ const heading=new THREE.Vector3(0,0,-1).applyQuaternion(new THREE.Quaternion(floatBody.rotation().x,floatBody.rotation().y,floatBody.rotation().z,floatBody.rotation().w));
+ let desired;
+ if(camMode===0)desired=new THREE.Vector3(p.x-heading.x*10, p.y+6.5, p.z-heading.z*10);
+ else if(camMode===1)desired=new THREE.Vector3(p.x-heading.x*5.2,p.y+3.3,p.z-heading.z*5.2);
+ else desired=new THREE.Vector3(p.x,p.y+5.05,p.z);
+ camera.position.lerp(desired,.09);const look=new THREE.Vector3(p.x+heading.x*(camMode===2?18:2),p.y+(camMode===2?4.5:2),p.z+heading.z*(camMode===2?18:2));camera.lookAt(look);camera.position.y+=shake;
+ renderer.render(scene,camera);
+}
+frame();
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+</script>
+</body>
+</html>
