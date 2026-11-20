@@ -61,6 +61,9 @@ function box(parent,x,y,z,sx,sy,sz,material){const o=new THREE.Mesh(new THREE.Bo
 const ground=box(scene,0,-.38,0,170,.7,170,stone);
 const world=new RAPIER.World({x:0,y:-9.81,z:0});
 function fixedBox(x,y,z,hx,hy,hz){const b=world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(x,y,z));world.createCollider(RAPIER.ColliderDesc.cuboid(hx,hy,hz),b);}
+// Physical road surface: without this fixed collider, gravity pulls the float through the visual road forever.
+const groundBody=world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(0,-.225,0));
+world.createCollider(RAPIER.ColliderDesc.cuboid(85,.25,85).setFriction(1.1),groundBody);
 // road layout: main avenue plus cross streets, all within a compact town block
 const roads=[{x:0,z:0,w:9,d:150},{x:0,z:0,w:150,d:9},{x:28,z:24,w:7,d:48},{x:-30,z:-25,w:7,d:50},{x:48,z:-28,w:7,d:45}];
 for(const r of roads){box(scene,r.x,.005,r.z,r.w,.04,r.d,roadMat)}
