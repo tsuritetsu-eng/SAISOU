@@ -260,7 +260,7 @@ function frame(){
   elapsed+=dt;
   const p=floatBody.translation();
   const keySteer=(keys.ArrowLeft||keys.KeyA?-1:0)+(keys.ArrowRight||keys.KeyD?1:0);
-  const steer=THREE.MathUtils.clamp(keySteer+joystick.x,-1,1);
+  const steer=THREE.MathUtils.clamp(keySteer-joystick.x,-1,1);
   const throttle=keys.ArrowUp||keys.KeyW||joystick.y<-.22,brake=keys.Space||keys.ArrowDown||keys.KeyS||joystick.y>.32;
   if(boostTime>0)boostTime=Math.max(0,boostTime-dt);
   if(stumbleTime>0)stumbleTime=Math.max(0,stumbleTime-dt);
