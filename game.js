@@ -264,7 +264,7 @@ function makeRouteChunk(index){
  // Side-lane barriers and stacked cargo make both road edges hazardous.
  for(const side of [-1,1]){const laneZ=centerZ-25+(index%3)*7,laneX=curveX((centerZ+24-laneZ)/CHUNK_LENGTH)+side*4.75;const stack=new THREE.Group();stack.position.set(laneX,routeHeight(laneZ),laneZ);group.add(stack);const crate=new THREE.Mesh(new THREE.BoxGeometry(1.35,1.65,1.45),wood);crate.position.y=.82;crate.castShadow=true;stack.add(crate);const strap=new THREE.Mesh(new THREE.BoxGeometry(1.4,.16,1.5),gold);strap.position.y=1.05;stack.add(strap);obstacles.push({x:laneX,z:laneZ,hx:.9,hz:.95,kind:'side'});}
  // Low crossbeams occupy only one side lane. The float's upper roof can strike them.
- const beamSide=index%2===0?-1:1,beamZ=centerZ-37,beamX=curveX((centerZ+24-beamZ)/CHUNK_LENGTH)+beamSide*2.8;
+ const beamSide=index%2===0?-1:1,beamZ=centerZ-37,beamX=curveX((centerZ+24-beamZ)/CHUNK_LENGTH)+beamSide*4.1;
  const beamPostMat=darkWood;for(const dx of [-1.55,1.55]){const post=new THREE.Mesh(new THREE.BoxGeometry(.18,6.8,.18),beamPostMat);post.position.set(beamX+dx,3.4,beamZ);post.castShadow=true;group.add(post);}
  const lowBeam=new THREE.Mesh(new THREE.BoxGeometry(3.35,.28,.34),red);lowBeam.position.set(beamX,7.0,beamZ);lowBeam.castShadow=true;group.add(lowBeam);
  obstacles.push({x:beamX,z:beamZ,hx:1.8,hz:.48,kind:'overhead',bottom:6.86});
