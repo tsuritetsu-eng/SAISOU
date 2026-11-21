@@ -284,8 +284,6 @@ function makeRouteChunk(index){
   const label=new THREE.Mesh(new THREE.BoxGeometry(.55,.12,.12),gold);label.position.y=.82;g.add(label);
   items.push({group:g,kind:spec.kind,collected:false,baseY:1.15,phase:index*.8+(spec.kind==='slip'?0:1.7)});
  }
- // Route progress marker, visible on the HUD via the current district number.
- const markerZ=centerZ-CHUNK_LENGTH*.38;const marker=new THREE.Mesh(new THREE.BoxGeometry(2.8,.8,.16),red);marker.position.set(curveX((centerZ+24-markerZ)/CHUNK_LENGTH),2.6,markerZ);group.add(marker);
  return {index,centerZ,intersectionZ,group,bodies,obstacles,items,jumpPads,pedestrians};
 }
 function disposeChunk(chunk){
