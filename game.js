@@ -193,7 +193,7 @@ function makeRouteChunk(index){
  const items=[];
  const terrain=new THREE.Mesh(new THREE.PlaneGeometry(80,CHUNK_LENGTH),stone);terrain.rotation.x=-Math.PI/2;terrain.position.set(0,-.36,centerZ);terrain.receiveShadow=true;group.add(terrain);
  const roadGeo=new THREE.BufferGeometry(),roadVerts=[],roadUvs=[],roadIndices=[],roadSegments=40,roadAcross=4;
- for(let j=0;j<=roadSegments;j++){const t=j/roadSegments,z=centerZ+CHUNK_LENGTH/2-t*CHUNK_LENGTH,cx=curveX(t);for(let k=0;k<=roadAcross;k++){const u=k/roadAcross;roadVerts.push(cx+(u-.5)*13,.012,z);roadUvs.push(u,t);if(j<roadSegments&&k<roadAcross){const a=j*(roadAcross+1)+k,b=a+roadAcross+1;roadIndices.push(a,b,a+1,b,b+1,a+1)}}}
+ for(let j=0;j<=roadSegments;j++){const t=j/roadSegments,z=centerZ+CHUNK_LENGTH/2-t*CHUNK_LENGTH,cx=curveX(t);for(let k=0;k<=roadAcross;k++){const u=k/roadAcross;roadVerts.push(cx+(u-.5)*13,.012,z);roadUvs.push(u,t);if(j<roadSegments&&k<roadAcross){const a=j*(roadAcross+1)+k,b=a+roadAcross+1;roadIndices.push(a,a+1,b,b,a+1,b+1)}}}
  roadGeo.setAttribute('position',new THREE.Float32BufferAttribute(roadVerts,3));roadGeo.setAttribute('uv',new THREE.Float32BufferAttribute(roadUvs,2));roadGeo.setIndex(roadIndices);roadGeo.computeVertexNormals();const roadMesh=new THREE.Mesh(roadGeo,roadMat);roadMesh.receiveShadow=true;group.add(roadMesh);
  const floor=world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(0,-.225,centerZ));world.createCollider(RAPIER.ColliderDesc.cuboid(40,.25,CHUNK_LENGTH/2).setFriction(1.1),floor);bodies.push(floor);
  for(const side of [-1,1]){
@@ -227,7 +227,7 @@ function makeRouteChunk(index){
   ?[{x:0,z:centerZ+53,kind:'slip'},{x:0,z:centerZ+30,kind:'boost'},{x:1.8,z:centerZ+8,kind:'slip'}]
   :[{x:index%2===0?-1.8:1.8,z:centerZ+14,kind:'slip'},{x:0,z:centerZ-2,kind:'boost'},{x:index%2===0?1.8:-1.8,z:centerZ-18,kind:'slip'}];
  for(const spec of pickupSpecs){
-  const g=new THREE.Group();g.position.set(curveX((centerZ+24-spec.z)/CHUNK_LENGTH)+spec.x,1.15,spec.z);group.add(g);
+  const g=new THREE.Group();g.position.set(curveX(THREE.MathUtils.clamp((centerZ+24-spec.z)/CHUNK_LENGTH,0,1))+spec.x,1.15,spec.z);group.add(g);
   const color=spec.kind==='slip'?0xff6848:0x58d8ff;
   const orb=new THREE.Mesh(new THREE.IcosahedronGeometry(.48,2),new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:.65,metalness:.35,roughness:.25}));g.add(orb);
   const ring=new THREE.Mesh(new THREE.TorusGeometry(.68,.075,8,24),new THREE.MeshStandardMaterial({color:spec.kind==='slip'?0xffc06b:0xa9f4ff,emissive:color,emissiveIntensity:.35}));ring.rotation.x=Math.PI/2;g.add(ring);
