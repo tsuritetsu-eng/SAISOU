@@ -236,8 +236,6 @@ function makeRouteChunk(index){
  const jumpZ=centerZ-7,jumpX=curveX(.65);
  const ramp=new THREE.Mesh(new THREE.BoxGeometry(3.4,.34,2.6),gold);ramp.position.set(jumpX,.22+routeHeight(jumpZ),jumpZ);ramp.rotation.x=-.10;ramp.castShadow=true;group.add(ramp);
  jumpPads.push({x:jumpX,z:jumpZ,used:false});
- // Repeating direction boards and arrows mark the route ahead.
- for(let j=0;j<3;j++){const z=centerZ-18+j*15;const board=new THREE.Mesh(new THREE.BoxGeometry(2.3,.72,.14),red);board.position.set(0,2.35,z);group.add(board);const arrow=new THREE.Mesh(new THREE.ConeGeometry(.32,.72,3),gold);arrow.rotation.z=-Math.PI/2;arrow.position.set(.08,2.35,z-.1);group.add(arrow);}
  // District scenery changes as the player advances, while staying cheap to render.
  const facadeMat=index%3===0?plaster:(index%3===1?wood:mat(0x9a7656));
  for(const side of [-1,1]){
