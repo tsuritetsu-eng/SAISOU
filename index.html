@@ -10,17 +10,17 @@
 <div id="game"></div>
 <div id="hud">
   <div class="top">
-    <div class="panel"><div id="title">祭走 - SAISOU</div><div id="stats">速度 0 km/h<br>閻魔との距離 34 m</div><div class="speed-track"><div id="speedFill"></div></div></div>
+    <div class="panel"><div id="title">祭走 - SAISOU</div><div id="stats">速度 0 km/h<br>閻魔との距離 34 m</div><div class="speed-track"><div id="speedFill"></div></div><div class="gauge-label">ブーストエネルギー</div><div class="speed-track boost-track"><div id="boostFill"></div></div></div>
     <div class="panel" id="status">試作コース：古都・宵町</div>
   </div>
   <div id="warning">閻魔が迫っている！</div>
-  <div id="buttons"><button id="camera">視点：追尾</button><button id="reset">リセット</button></div>
+  <div id="buttons"><button id="camera">視点：追尾</button><button id="boostButton" disabled>ブースト 0%</button><button id="reset">リセット</button></div>
   <div id="help">PC：WASD / 矢印　スマホ：ジョイスティック　C：視点切替</div>
   <div id="touch"><div id="stickBase" aria-label="操作用ジョイスティック"><div id="stickKnob"></div></div><div id="stickHint">上下：アクセル・ブレーキ<br>左右：ハンドル</div></div>
 </div>
 <div id="overlay"><div class="card"><h1>祭走</h1><div style="letter-spacing:.2em;color:#d79b64">SAISOU / 3D PHYSICS PROTOTYPE</div>
-<p>京都風の古都を、山車を操って駆け抜けよう。<br>建物にぶつからないように進み、背後から迫る閻魔を振り切れ。</p>
-<p>この試作では、山車の慣性・旋回の遅れ・建物衝突に加え、横断する人や路上の障害物を避ける走行を体験できます。<br>画面右上のボタン、または C キーでカメラを切り替えられます。</p>
+<p>京都風の古都を、山車を操って駆け抜けよう。<br>建物にぶつからないように進み、背後から迫る閻魔を振り切れ。赤い札で閻魔を妨害し、青い光でブーストをためよう。</p>
+<p>閻魔は通常走行より速く追ってくる。赤いアイテムで閻魔を妨害し、青いアイテムを集めてブーストを発動しよう。PCはShift、スマホはブーストボタンで発動。<br>画面右上のボタン、または C キーでカメラを切り替えられます。</p>
 <button id="start">出走する</button></div></div>
 <script type="module" src="./game.js"></script>
 </body>
