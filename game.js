@@ -133,7 +133,7 @@ world.createCollider(RAPIER.ColliderDesc.cuboid(1.45,1.25,2.25).setMass(7).setFr
 floatBody.setEnabledRotations(false,true,false,true);floatBody.setGravityScale(0,true);
 let driveSpeed=0,driveYaw=0,sideSlip=0,bodyLean=0;
 let jumpHeight=0,jumpVelocity=0;const JUMP_GRAVITY=13.5;
-const MAX_SPEED=18.5,ENMA_SPEED=20.5,ENMA_START_DISTANCE=0,ENMA_INITIAL_GAP=45;
+const MAX_SPEED=18.5,ENMA_SPEED=20.5,ENMA_START_DISTANCE=0,ENMA_INITIAL_GAP=50;
 let boostCharge=0,boostTime=0,stumbleTime=0,debuffTime=0;
 // Difficulty rises gently every 48 m section (displayed as a round).
 function currentRound(){return Math.max(1,Math.floor(travelDistance/48)+1)}
