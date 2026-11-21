@@ -61,7 +61,7 @@ for(let z=-60;z<=60;z+=15){lantern(-5.7,z);lantern(5.7,z)}
 // shrine gate in the distance
 const gate=new THREE.Group();scene.add(gate);gate.position.set(0,0,-69);
 box(gate,-3,3,0,.45,6,.45,red);box(gate,3,3,0,.45,6,.45,red);box(gate,0,6.1,0,8,.5,.7,darkWood);box(gate,0,6.7,0,9,.35,1,gold);
-const staticGateObstacles=[{x:-3,z:-69,hx:.42,hz:.55,kind:'toriiPost'},{x:3,z:-69,hx:.42,hz:.55,kind:'toriiPost'},{x:0,z:-69,hx:4.7,hz:.58,kind:'toriiBeam',bottom:6.78}];
+const staticGateObstacles=[{x:-3,z:-69,hx:.34,hz:.43,kind:'toriiPost'},{x:3,z:-69,hx:.34,hz:.43,kind:'toriiPost'},{x:0,z:-69,hx:4.45,hz:.46,kind:'toriiBeam',bottom:6.78}];
 
 // Dynamic street hazards: crossing festival-goers and dropped street objects
 const personMaterials=[mat(0x345b78),mat(0x8d4938),mat(0xd0b58a),mat(0x454b62)];
@@ -227,10 +227,10 @@ function makeRouteChunk(index){
  // Torii gates appear periodically, with collision on pillars and crossbeam.
  if(index%3===1||index%4===3){
   const gateZ=centerZ-29,gateX=curveX((centerZ+24-gateZ)/CHUNK_LENGTH),toriiRed=mat(0x9b2924,.72),toriiDark=mat(0x38251e,.8);
-  for(const side of [-1,1]){const gx=gateX+side*4.05;const pillar=new THREE.Mesh(new THREE.CylinderGeometry(.34,.42,7.59,12),toriiRed);pillar.position.set(gx,3.795,gateZ);pillar.castShadow=true;group.add(pillar);const foot=new THREE.Mesh(new THREE.CylinderGeometry(.55,.55,.28,12),toriiDark);foot.position.set(gx,.16,gateZ);group.add(foot);obstacles.push({x:gx,z:gateZ,hx:.48,hz:.62,kind:'toriiPost'});}
+  for(const side of [-1,1]){const gx=gateX+side*4.05;const pillar=new THREE.Mesh(new THREE.CylinderGeometry(.34,.42,7.59,12),toriiRed);pillar.position.set(gx,3.795,gateZ);pillar.castShadow=true;group.add(pillar);const foot=new THREE.Mesh(new THREE.CylinderGeometry(.55,.55,.28,12),toriiDark);foot.position.set(gx,.16,gateZ);group.add(foot);obstacles.push({x:gx,z:gateZ,hx:.38,hz:.48,kind:'toriiPost'});}
   const lintel=new THREE.Mesh(new THREE.BoxGeometry(9.7,.48,.72),toriiRed);lintel.position.set(gateX,7.59,gateZ);lintel.castShadow=true;group.add(lintel);
   const topBeam=new THREE.Mesh(new THREE.BoxGeometry(10.8,.34,1.05),toriiDark);topBeam.position.set(gateX,7.99,gateZ);topBeam.castShadow=true;group.add(topBeam);
-  obstacles.push({x:gateX,z:gateZ,hx:5.35,hz:.72,kind:'toriiBeam',bottom:7.35});
+  obstacles.push({x:gateX,z:gateZ,hx:5.05,hz:.56,kind:'toriiBeam',bottom:7.35});
  }
  // Small ramps launch the float when crossed at speed.
  const jumpZ=centerZ-7,jumpX=curveX(.65);
@@ -311,10 +311,10 @@ function checkCollisions(p){
  const ex=1.55*Math.abs(Math.cos(driveYaw))+2.4*Math.abs(Math.sin(driveYaw));
  const ez=1.55*Math.abs(Math.sin(driveYaw))+2.4*Math.abs(Math.cos(driveYaw));
  for(const b of blocks){const [x,z,w,d]=b;if(Math.abs(p.x-x)<w/2+ex*.78&&Math.abs(p.z-z)<d/2+ez*.78){triggerGameOver('建物に衝突した！');return true;}}
- for(const o of staticGateObstacles){if(Math.abs(p.x-o.x)<o.hx+ex*.45&&Math.abs(p.z-o.z)<o.hz+ez*.45){if(o.kind==='toriiBeam'){if(6.52+routeHeight(p.z)+jumpHeight>o.bottom){triggerGameOver('鳥居の横木に衝突した！');return true;}}else{triggerGameOver('鳥居の柱に衝突した！');return true;}}}
+ for(const o of staticGateObstacles){if(Math.abs(p.x-o.x)<o.hx+ex*.28&&Math.abs(p.z-o.z)<o.hz+ez*.28){if(o.kind==='toriiBeam'){if(6.52+routeHeight(p.z)+jumpHeight>o.bottom){triggerGameOver('鳥居の横木に衝突した！');return true;}}else{triggerGameOver('鳥居の柱に衝突した！');return true;}}}
  const inJunction=[...streamedChunks.values()].some(c=>(c.index%3===1||c.index%3===2)&&Math.abs(p.z-c.intersectionZ)<5.4);
- if(inJunction?Math.abs(p.x-routeCenterX(p.z))>24:Math.abs(p.x-routeCenterX(p.z))+ex>6.45){triggerGameOver('フェンス・柵に衝突した！カーブに沿って走ろう。');return true;}
- for(const chunk of streamedChunks.values())for(const o of chunk.obstacles){if(Math.abs(p.x-o.x)<o.hx+ex*.45&&Math.abs(p.z-o.z)<o.hz+ez*.45){if(o.kind==='overhead'||o.kind==='toriiBeam'){const roofTop=6.52+routeHeight(p.z)+jumpHeight;if(roofTop>o.bottom){triggerGameOver(o.kind==='toriiBeam'?'鳥居の横木に衝突した！':'山車の屋根が低い横木に衝突した！');return true;}}else{triggerGameOver(o.kind==='toriiPost'?'鳥居の柱に衝突した！':'コース脇の障害物に衝突した！');return true;}}}
+ if(inJunction?Math.abs(p.x-routeCenterX(p.z))>25.5:Math.abs(p.x-routeCenterX(p.z))+ex>7.0){triggerGameOver('フェンス・柵に衝突した！カーブに沿って走ろう。');return true;}
+ for(const chunk of streamedChunks.values())for(const o of chunk.obstacles){const margin=(o.kind==='toriiPost'||o.kind==='toriiBeam')?.28:.45;if(Math.abs(p.x-o.x)<o.hx+ex*margin&&Math.abs(p.z-o.z)<o.hz+ez*margin){if(o.kind==='overhead'||o.kind==='toriiBeam'){const roofTop=6.52+routeHeight(p.z)+jumpHeight;if(roofTop>o.bottom){triggerGameOver(o.kind==='toriiBeam'?'鳥居の横木に衝突した！':'山車の屋根が低い横木に衝突した！');return true;}}else{triggerGameOver(o.kind==='toriiPost'?'鳥居の柱に衝突した！':'コース脇の障害物に衝突した！');return true;}}}
  for(const h of hazardMeshes){if(h.kind==='obstacle'&&Math.hypot(p.x-h.group.position.x,p.z-h.group.position.z)<1.65){triggerGameOver('路上の障害物に衝突した！');return true;}}
  return false;
 }
