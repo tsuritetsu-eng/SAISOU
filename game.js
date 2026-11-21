@@ -323,9 +323,10 @@ function frame(){
   const enmaPace=stumbleTime>0?7.0:ENMA_SPEED;
   chaseDistance=THREE.MathUtils.clamp(chaseDistance+(speed-enmaPace)*dt,1.8,90);
   const targetZ=np.z+chaseDistance;
-  demon.position.x+=(np.x-demon.position.x)*Math.min(1,dt*1.8);
+  const enmaWobble=stumbleTime>0?Math.sin(elapsed*13)*1.35:0;
+  demon.position.x+=(np.x+enmaWobble-demon.position.x)*Math.min(1,dt*1.8);
   demon.position.z+=(targetZ-demon.position.z)*Math.min(1,dt*3.2);
-  demon.rotation.y=Math.PI;
+  demon.rotation.y=Math.PI;demon.rotation.z=stumbleTime>0?Math.sin(elapsed*17)*.24:0;
   if(chaseDistance>=90&&!escaped){escaped=true;triggerWin();}
   const danger=!escaped&&chaseDistance<15;
   document.querySelector('#warning').style.opacity=(!escaped&&chaseDistance<19)?1:0;
