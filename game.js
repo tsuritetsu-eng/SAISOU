@@ -214,7 +214,7 @@ function makeRouteChunk(index){
  // Four-way junctions connect the main avenue to a cross street.
  const intersectionX=curveX((centerZ+24-intersectionZ)/CHUNK_LENGTH);
  if(index%3===1||index%3===2){
-  const crossGeo=new THREE.PlaneGeometry(54,8.5,36,8);crossGeo.rotateX(-Math.PI/2);const cp=crossGeo.attributes.position;for(let v=0;v<cp.count;v++){const wx=intersectionX+cp.getX(v),wz=intersectionZ+cp.getZ(v);cp.setY(v,.018+routeHeight(wz,wx-routeCenterX(wz)));}crossGeo.computeVertexNormals();const crossRoad=new THREE.Mesh(crossGeo,roadMat);crossRoad.position.set(0,0,0);group.add(crossRoad);
+  const crossGeo=new THREE.PlaneGeometry(54,8.5,36,8);crossGeo.rotateX(-Math.PI/2);const cp=crossGeo.attributes.position;for(let v=0;v<cp.count;v++){const wx=intersectionX+cp.getX(v),wz=intersectionZ+cp.getZ(v);cp.setY(v,.018+routeHeight(wz,wx-routeCenterX(wz)));}crossGeo.computeVertexNormals();const crossRoad=new THREE.Mesh(crossGeo,roadMat);crossRoad.position.set(intersectionX,0,intersectionZ);group.add(crossRoad);
   for(let stripe=-2;stripe<=2;stripe++){const mark=new THREE.Mesh(new THREE.BoxGeometry(.42,.025,7.2),mat(0xd8d0b8));mark.position.set(intersectionX+stripe*.78,.06+routeHeight(intersectionZ,stripe*.78),intersectionZ);group.add(mark);}
  }
  const floor=world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(0,-.225,centerZ));world.createCollider(RAPIER.ColliderDesc.cuboid(40,.25,CHUNK_LENGTH/2).setFriction(1.1),floor);bodies.push(floor);
