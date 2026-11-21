@@ -131,7 +131,9 @@ const floatBody=world.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setTranslat
 world.createCollider(RAPIER.ColliderDesc.cuboid(1.45,1.25,2.25).setMass(7).setFriction(.8),floatBody);
 floatBody.setEnabledRotations(false,true,false,true);floatBody.setGravityScale(0,true);
 let driveSpeed=0,driveYaw=0,sideSlip=0,bodyLean=0;
-const MAX_SPEED=18.5;
+const MAX_SPEED=18.5,ENMA_SPEED=20.5;
+let boostCharge=0,boostTime=0,stumbleTime=0;
+const BOOST_COST=35,BOOST_DURATION=2.8,BOOST_SPEED=27.5;
 // simple Enma pursuer, stylized rather than graphic
 const demon=new THREE.Group();scene.add(demon);
 const demonMat=mat(0x3a171b), hornMat=mat(0xe0b68a), eyeMat=new THREE.MeshBasicMaterial({color:0xff2c16});
@@ -143,8 +145,9 @@ const worldMap={};
 let chaseDistance=34,camMode=0,started=false,gameOver=false,elapsed=0,shake=0,travelDistance=0,escaped=false;
 const streamedChunks=new Map();const CHUNK_LENGTH=48,CHUNK_BEHIND=2,CHUNK_AHEAD=5;
 const keys={};
+function activateBoost(){if(!started||gameOver||boostCharge<BOOST_COST||boostTime>0)return;boostCharge-=BOOST_COST;boostTime=BOOST_DURATION;document.querySelector('#status').textContent='ブースト発動！一気に加速！';}
 const joystick={x:0,y:0,active:false,pointerId:null};
-addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();keys[e.code]=true;if(e.code==='KeyC')toggleCamera()});
+addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();keys[e.code]=true;if(e.code==='KeyC')toggleCamera();if(e.code==='ShiftLeft'||e.code==='ShiftRight')activateBoost()});
 addEventListener('keyup',e=>{keys[e.code]=false});
 addEventListener('blur',()=>{for(const k in keys)keys[k]=false});
  // Analog virtual joystick: horizontal = steering, vertical = throttle / brake.
@@ -166,7 +169,8 @@ stickBase.addEventListener('pointermove',e=>{if(joystick.active&&e.pointerId===j
 ['pointerup','pointercancel','lostpointercapture'].forEach(type=>stickBase.addEventListener(type,releaseStick));
 function toggleCamera(){camMode=(camMode+1)%3;document.querySelector('#camera').textContent=['視点：追尾','視点：近距離','視点：一人称'][camMode]}
 document.querySelector('#camera').onclick=toggleCamera;
-function reset(){for(const chunk of streamedChunks.values())disposeChunk(chunk);streamedChunks.clear();driveSpeed=0;driveYaw=0;sideSlip=0;bodyLean=0;travelDistance=0;escaped=false;for(const k in keys)keys[k]=false;releaseStick();floatBody.setTranslation({x:0,y:1.8,z:22},true);floatBody.setLinvel({x:0,y:0,z:0},true);floatBody.setAngvel({x:0,y:0,z:0},true);floatBody.setRotation({x:0,y:0,z:0,w:1},true);float.rotation.set(0,0,0);floatUpper.rotation.set(0,0,0);chaseDistance=34;elapsed=0;gameOver=false;demon.position.set(0,0,56);document.querySelector('#overlay').style.display='none';document.querySelector('#overlay h1').textContent='祭走';document.querySelector('#start').textContent='出走する';document.querySelector('#status').textContent='順路の矢印に従って進もう';started=true}
+document.querySelector('#boostButton').onclick=activateBoost;
+function reset(){for(const chunk of streamedChunks.values())disposeChunk(chunk);streamedChunks.clear();driveSpeed=0;driveYaw=0;sideSlip=0;bodyLean=0;boostCharge=0;boostTime=0;stumbleTime=0;travelDistance=0;escaped=false;for(const k in keys)keys[k]=false;releaseStick();floatBody.setTranslation({x:0,y:1.8,z:22},true);floatBody.setLinvel({x:0,y:0,z:0},true);floatBody.setAngvel({x:0,y:0,z:0},true);floatBody.setRotation({x:0,y:0,z:0,w:1},true);float.rotation.set(0,0,0);floatUpper.rotation.set(0,0,0);chaseDistance=34;elapsed=0;gameOver=false;demon.position.set(0,0,56);document.querySelector('#overlay').style.display='none';document.querySelector('#overlay h1').textContent='祭走';document.querySelector('#start').textContent='出走する';document.querySelector('#status').textContent='順路の矢印に従って進もう';started=true}
 document.querySelector('#reset').onclick=reset;document.querySelector('#start').onclick=reset;
 demon.position.set(0,0,56);
 const clock=new THREE.Clock();
@@ -177,6 +181,7 @@ for(let z=-72;z<75;z+=.72)for(let x=-4.1;x<=4.1;x+=.94){if(Math.random()<.14)con
 
 function makeRouteChunk(index){
  const centerZ=-80-index*CHUNK_LENGTH,group=new THREE.Group(),bodies=[],obstacles=[];scene.add(group);
+ const items=[];
  const terrain=new THREE.Mesh(new THREE.PlaneGeometry(80,CHUNK_LENGTH),stone);terrain.rotation.x=-Math.PI/2;terrain.position.set(0,-.36,centerZ);terrain.receiveShadow=true;group.add(terrain);
  const roadMesh=new THREE.Mesh(new THREE.PlaneGeometry(13,CHUNK_LENGTH),roadMat);roadMesh.rotation.x=-Math.PI/2;roadMesh.position.set(0,.012,centerZ);roadMesh.receiveShadow=true;group.add(roadMesh);
  const floor=world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(0,-.225,centerZ));world.createCollider(RAPIER.ColliderDesc.cuboid(40,.25,CHUNK_LENGTH/2).setFriction(1.1),floor);bodies.push(floor);
@@ -204,9 +209,19 @@ function makeRouteChunk(index){
  }
  // Staggered road hazards: every few sections require a deliberate lane change.
  if(index%2===0){const ox=index%4===0?-3.6:3.6,oz=centerZ-13;const crate=new THREE.Mesh(new THREE.BoxGeometry(1.05,.9,1.05),wood);crate.position.set(ox,.45,oz);crate.castShadow=true;group.add(crate);const band=new THREE.Mesh(new THREE.BoxGeometry(1.08,.12,1.08),gold);band.position.set(ox,.76,oz);group.add(band);obstacles.push({x:ox,z:oz,hx:.85,hz:.85});}
+ // Pickups: red talisman trips Enma; blue orb charges the player's boost.
+ const pickupSpecs=[{x:index%2===0?-2.8:2.8,z:centerZ-9,kind:'slip'},{x:index%2===0?2.8:-2.8,z:centerZ-31,kind:'boost'}];
+ for(const spec of pickupSpecs){
+  const g=new THREE.Group();g.position.set(spec.x,1.15,spec.z);group.add(g);
+  const color=spec.kind==='slip'?0xff6848:0x58d8ff;
+  const orb=new THREE.Mesh(new THREE.IcosahedronGeometry(.48,2),new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:.65,metalness:.35,roughness:.25}));g.add(orb);
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(.68,.075,8,24),new THREE.MeshStandardMaterial({color:spec.kind==='slip'?0xffc06b:0xa9f4ff,emissive:color,emissiveIntensity:.35}));ring.rotation.x=Math.PI/2;g.add(ring);
+  const label=new THREE.Mesh(new THREE.BoxGeometry(.55,.12,.12),gold);label.position.y=.82;g.add(label);
+  items.push({group:g,kind:spec.kind,collected:false,baseY:1.15,phase:index*.8+(spec.kind==='slip'?0:1.7)});
+ }
  // Route progress marker, visible on the HUD via the current district number.
  const marker=new THREE.Mesh(new THREE.BoxGeometry(2.8,.8,.16),red);marker.position.set(0,2.6,centerZ-CHUNK_LENGTH*.38);group.add(marker);
- return {index,centerZ,group,bodies,obstacles};
+ return {index,centerZ,group,bodies,obstacles,items};
 }
 function disposeChunk(chunk){
  scene.remove(chunk.group);chunk.group.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material&&![roadMat,stone,wood,darkWood,gold,red,roof,plaster].includes(o.material))o.material.dispose?.();});
@@ -247,7 +262,10 @@ function frame(){
   const keySteer=(keys.ArrowLeft||keys.KeyA?-1:0)+(keys.ArrowRight||keys.KeyD?1:0);
   const steer=THREE.MathUtils.clamp(keySteer+joystick.x,-1,1);
   const throttle=keys.ArrowUp||keys.KeyW||joystick.y<-.22,brake=keys.Space||keys.ArrowDown||keys.KeyS||joystick.y>.32;
-  if(throttle)driveSpeed=Math.min(MAX_SPEED,driveSpeed+10.5*dt);
+  if(boostTime>0)boostTime=Math.max(0,boostTime-dt);
+  if(stumbleTime>0)stumbleTime=Math.max(0,stumbleTime-dt);
+  const speedLimit=boostTime>0?BOOST_SPEED:MAX_SPEED;
+  if(throttle)driveSpeed=Math.min(speedLimit,driveSpeed+(boostTime>0?17:10.5)*dt);
   else driveSpeed=Math.max(0,driveSpeed-1.15*dt);
   if(brake)driveSpeed=Math.max(0,driveSpeed-19*dt);
   const steerAuthority=.18+Math.min(driveSpeed/MAX_SPEED,1)*.92;
@@ -291,9 +309,19 @@ function frame(){
     }
   }
 
-  // Enma is a real pursuer: outrun its 9 m/s pace to open the gap, slow down and it closes in.
+  // Pick up course items. Red talismans make Enma stumble; blue orbs charge boost.
+  for(const chunk of streamedChunks.values())for(const item of chunk.items){
+   if(item.collected)continue;
+   item.group.rotation.y+=dt*1.8;item.group.position.y=item.baseY+Math.sin(elapsed*3+item.phase)*.13;
+   if(Math.hypot(np.x-item.group.position.x,np.z-item.group.position.z)<1.55){
+    item.collected=true;item.group.visible=false;
+    if(item.kind==='slip'){stumbleTime=3.6;chaseDistance=Math.min(90,chaseDistance+5);document.querySelector('#status').textContent='妨害成功！閻魔がよろめいている！';}
+    else{boostCharge=Math.min(100,boostCharge+35);document.querySelector('#status').textContent='ブーストエネルギー +35！';}
+   }
+  }
   travelDistance+=speed*dt;
-  chaseDistance=THREE.MathUtils.clamp(chaseDistance+(speed-9.0)*dt,1.8,90);
+  const enmaPace=stumbleTime>0?7.0:ENMA_SPEED;
+  chaseDistance=THREE.MathUtils.clamp(chaseDistance+(speed-enmaPace)*dt,1.8,90);
   const targetZ=np.z+chaseDistance;
   demon.position.x+=(np.x-demon.position.x)*Math.min(1,dt*1.8);
   demon.position.z+=(targetZ-demon.position.z)*Math.min(1,dt*3.2);
@@ -303,7 +331,12 @@ function frame(){
   document.querySelector('#warning').style.opacity=(!escaped&&chaseDistance<19)?1:0;
   if(!escaped&&chaseDistance>=19)document.querySelector('#status').textContent='閻魔から逃走中';
   document.querySelector('#stats').innerHTML=`速度 ${Math.round(speed*3.6)} km/h<br>閻魔との距離 ${Math.round(chaseDistance)} m<br>走行距離 ${Math.floor(travelDistance)} m<br>区画 ${Math.max(1,Math.floor(travelDistance/48)+1)}`;
-  document.querySelector('#speedFill').style.width=`${Math.min(100,speed/MAX_SPEED*100)}%`;
+  document.querySelector('#speedFill').style.width=`${Math.min(100,speed/BOOST_SPEED*100)}%`;
+  document.querySelector('#boostFill').style.width=`${boostCharge}%`;
+  document.querySelector('#boostButton').textContent=boostTime>0?'BOOST!':`ブースト ${Math.floor(boostCharge)}%`;
+  document.querySelector('#boostButton').disabled=boostCharge<BOOST_COST||boostTime>0;
+  document.querySelector('#boostButton').classList.toggle('boost-active',boostTime>0);
+  if(stumbleTime>0)document.querySelector('#status').textContent='閻魔がよろめいている！';
   if(!escaped&&chaseDistance<=2)triggerGameOver('閻魔に追いつかれてしまった！');
   if(Math.abs(np.x)>78||Math.abs(np.z)>78){floatBody.setLinvel({x:v.x*.7,y:v.y,z:v.z*.7},true)}
   shake=danger?Math.sin(elapsed*23)*.04:0;
