@@ -133,7 +133,7 @@ world.createCollider(RAPIER.ColliderDesc.cuboid(1.45,1.25,2.25).setMass(7).setFr
 floatBody.setEnabledRotations(false,true,false,true);floatBody.setGravityScale(0,true);
 let driveSpeed=0,driveYaw=0,sideSlip=0,bodyLean=0;
 let jumpHeight=0,jumpVelocity=0;const JUMP_GRAVITY=13.5;
-const MAX_SPEED=18.5,ENMA_SPEED=20.5,ENMA_START_DISTANCE=0;
+const MAX_SPEED=18.5,ENMA_SPEED=20.5,ENMA_START_DISTANCE=0,ENMA_INITIAL_GAP=45;
 let boostCharge=0,boostTime=0,stumbleTime=0,debuffTime=0;
 // Difficulty rises gently every 48 m section (displayed as a round).
 function currentRound(){return Math.max(1,Math.floor(travelDistance/48)+1)}
@@ -149,7 +149,7 @@ const head=new THREE.Mesh(new THREE.SphereGeometry(.85,20,16),mat(0x762c25));hea
 for(const x of [-.38,.38]){const eye=new THREE.Mesh(new THREE.SphereGeometry(.13,12,8),eyeMat);eye.position.set(x,4.2,.73);demon.add(eye);const horn=new THREE.Mesh(new THREE.ConeGeometry(.23,1,12),hornMat);horn.position.set(x*1.6,5.1,0);horn.rotation.z=x<0?.25:-.25;demon.add(horn)}
 box(demon,0,3.1,.95,1.2,.24,.15,mat(0xb18c3e));
 const worldMap={};
-let chaseDistance=45,camMode=0,started=false,gameOver=false,elapsed=0,shake=0,travelDistance=0,escaped=false,enmaStarted=false;
+let chaseDistance=ENMA_INITIAL_GAP,camMode=0,started=false,gameOver=false,elapsed=0,shake=0,travelDistance=0,escaped=false,enmaStarted=false;
 const streamedChunks=new Map();const CHUNK_LENGTH=48,CHUNK_BEHIND=1;
 let renderDistance=2; // Loaded route sections ahead, adjustable like Minecraft view distance.
 const renderDistanceSelect=document.querySelector('#renderDistance');
@@ -182,9 +182,9 @@ function toggleCamera(){camMode=(camMode+1)%4;document.querySelector('#camera').
 
 document.querySelector('#camera').onclick=toggleCamera;
 document.querySelector('#boostButton').onclick=activateBoost;
-function reset(){for(const chunk of streamedChunks.values())disposeChunk(chunk);streamedChunks.clear();driveSpeed=0;driveYaw=0;sideSlip=0;bodyLean=0;jumpHeight=0;jumpVelocity=0;boostCharge=0;boostTime=0;stumbleTime=0;debuffTime=0;travelDistance=0;escaped=false;for(const k in keys)keys[k]=false;releaseStick();floatBody.setTranslation({x:0,y:1.8,z:22},true);floatBody.setLinvel({x:0,y:0,z:0},true);floatBody.setAngvel({x:0,y:0,z:0},true);floatBody.setRotation({x:0,y:0,z:0,w:1},true);float.rotation.set(0,0,0);floatUpper.rotation.set(0,0,0);chaseDistance=45;enmaStarted=false;demon.visible=true;elapsed=0;gameOver=false;demon.position.set(0,0,67);document.querySelector('#overlay').style.display='none';document.querySelector('#overlay h1').textContent='祭走';document.querySelector('#start').textContent='出走する';document.querySelector('#status').textContent='順路の矢印に従って進もう';started=true}
+function reset(){for(const chunk of streamedChunks.values())disposeChunk(chunk);streamedChunks.clear();driveSpeed=0;driveYaw=0;sideSlip=0;bodyLean=0;jumpHeight=0;jumpVelocity=0;boostCharge=0;boostTime=0;stumbleTime=0;debuffTime=0;travelDistance=0;escaped=false;for(const k in keys)keys[k]=false;releaseStick();floatBody.setTranslation({x:0,y:1.8,z:22},true);floatBody.setLinvel({x:0,y:0,z:0},true);floatBody.setAngvel({x:0,y:0,z:0},true);floatBody.setRotation({x:0,y:0,z:0,w:1},true);float.rotation.set(0,0,0);floatUpper.rotation.set(0,0,0);chaseDistance=ENMA_INITIAL_GAP;enmaStarted=false;demon.visible=true;elapsed=0;gameOver=false;demon.position.set(0,0,22+ENMA_INITIAL_GAP);document.querySelector('#overlay').style.display='none';document.querySelector('#overlay h1').textContent='祭走';document.querySelector('#start').textContent='出走する';document.querySelector('#status').textContent='順路の矢印に従って進もう';started=true}
 document.querySelector('#reset').onclick=reset;document.querySelector('#start').onclick=reset;
-demon.position.set(0,0,67);demon.visible=true;
+demon.position.set(0,0,22+ENMA_INITIAL_GAP);demon.visible=true;
 const clock=new THREE.Clock();
 const tmp=new THREE.Vector3();
 // Baked-looking individual stone paving, batched for mobile performance.
@@ -275,7 +275,7 @@ function makeRouteChunk(index){
  // Pickups: red talismans trip Enma; blue orbs charge boost.
  const pickupSpecs=index===0
   // The opening red talisman is guaranteed and placed before the first boost.
-  ?[{x:-1.7,z:centerZ+30,kind:'slip'},{x:1.7,z:centerZ+8,kind:'boost'}]
+  ?[{x:0,z:17,kind:'slip'},{x:1.7,z:centerZ+8,kind:'boost'}]
   :[{x:0,z:centerZ-2,kind:'boost'},...(index%2===0?[{x:index%4===0?-1.8:1.8,z:centerZ+14,kind:'slip'}]:[]),...(index%3===1?[{x:index%2===0?1.8:-1.8,z:centerZ-18,kind:'debuff'}]:[])];
  for(const spec of pickupSpecs){
   const g=new THREE.Group();g.position.set(curveX(THREE.MathUtils.clamp((centerZ+24-spec.z)/CHUNK_LENGTH,0,1))+spec.x,1.15,spec.z);group.add(g);
