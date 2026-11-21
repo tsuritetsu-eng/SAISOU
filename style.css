@@ -22,3 +22,6 @@ button{border:1px solid #ffffff55;background:#182630dd;color:white;border-radius
 #overlay h1{letter-spacing:.18em;margin:0 0 8px}#overlay p{line-height:1.8;color:#d3dce2;font-size:14px}
 #start{background:#b84a31;border:0;padding:13px 24px;font-size:15px}
 @media(max-width:700px){#touch{display:flex}#help{bottom:12px;left:auto;right:12px;transform:none;font-size:10px}#buttons{top:auto;bottom:190px;right:12px;flex-direction:column}.top{top:8px;left:8px;right:8px}.panel{padding:7px 9px}#stickBase{width:142px;height:142px}#stickKnob{width:58px;height:58px}#stickHint{left:158px;bottom:38px}}
+
+.gauge-label{font-size:10px;color:#dce8ed;margin-top:4px}.boost-track{height:6px;margin-top:3px}.boost-track div{background:linear-gradient(90deg,#59d8ff,#b4f5ff);height:100%;width:0;border-radius:99px;transition:width .12s linear}#boostButton:disabled{opacity:.48}#boostButton.boost-active{background:#146b83;border-color:#9ceeff;box-shadow:0 0 18px #51dfff99}
+@media(max-width:700px){#buttons{bottom:190px;gap:6px}#buttons button{padding:9px 10px;font-size:11px}}
