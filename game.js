@@ -136,8 +136,8 @@ let boostCharge=0,boostTime=0,stumbleTime=0;
 // Difficulty rises gently every 48 m section (displayed as a round).
 function currentRound(){return Math.max(1,Math.floor(travelDistance/48)+1)}
 function enmaChasePace(){return ENMA_SPEED+Math.min(2.2,(currentRound()-1)*.22)}
-function enmaStumblePace(){return Math.min(16.5,12.5+(currentRound()-1)*.45)}
-function enmaStumbleDuration(){return Math.max(1.2,2.2-(currentRound()-1)*.12)}
+function enmaStumblePace(){return Math.min(19.5,17.2+(currentRound()-1)*.35)}
+function enmaStumbleDuration(){return Math.max(.55,1.0-(currentRound()-1)*.08)}
 const BOOST_COST=35,BOOST_DURATION=3.4,BOOST_SPEED=34.5;
 // simple Enma pursuer, stylized rather than graphic
 const demon=new THREE.Group();demon.visible=false;scene.add(demon);
