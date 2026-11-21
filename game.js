@@ -184,9 +184,17 @@ const clock=new THREE.Clock();
 const tmp=new THREE.Vector3();
 // Baked-looking individual stone paving, batched for mobile performance.
 const pavingGeo=new THREE.BoxGeometry(.82,.035,.42),pavingMat=mat(0x777a76,.96);const paving=new THREE.InstancedMesh(pavingGeo,pavingMat,650);const pavingDummy=new THREE.Object3D();let pavingN=0;
-for(let z=-72;z<75;z+=.72)for(let x=-4.1;x<=4.1;x+=.94){if(Math.random()<.14)continue;pavingDummy.position.set(x,.055,z);pavingDummy.rotation.y=(Math.random()-.5)*.035;pavingDummy.scale.set(.86+Math.random()*.16,1,.9+Math.random()*.18);pavingDummy.updateMatrix();if(pavingN<650)paving.setMatrixAt(pavingN++,pavingDummy.matrix)}paving.count=pavingN;paving.receiveShadow=true;scene.add(paving);
+for(let z=-72;z<75;z+=.72)for(let x=-4.1;x<=4.1;x+=.94){if(Math.random()<.14)continue;pavingDummy.position.set(x,.055+routeHeight(z,x),z);pavingDummy.rotation.y=(Math.random()-.5)*.035;pavingDummy.scale.set(.86+Math.random()*.16,1,.9+Math.random()*.18);pavingDummy.updateMatrix();if(pavingN<650)paving.setMatrixAt(pavingN++,pavingDummy.matrix)}paving.count=pavingN;paving.receiveShadow=true;scene.add(paving);
 
-function routeHeight(z){return .18*Math.sin(z*.105)+.11*Math.sin(z*.255+1.2);}
+// Road surface: broad rolling undulations plus smaller stone-road bumps.
+function routeHeight(z,x=0){
+ const broad=.24*Math.sin(z*.105)+.13*Math.sin(z*.255+1.2);
+ const rough=.075*Math.sin(z*.82+x*.34)+.045*Math.sin(z*1.63-x*.72)+.028*Math.sin(z*3.1+x*1.4);
+ const cross=.075*Math.sin(x*.95+z*.075)+.035*Math.sin(x*2.1-z*.16);
+ return broad+rough+cross;
+}
+function roadSlopeX(x,z){return (routeHeight(z,x+.35)-routeHeight(z,x-.35))/.7}
+function roadSlopeZ(x,z){return (routeHeight(z+.35,x)-routeHeight(z-.35,x))/.7}
 function routeCurveOffset(index,t){const amplitude=2.1+(index%3)*.55;return Math.sin(t*Math.PI*2+(index%2)*Math.PI)*amplitude;}
 function routeCenterX(z){const index=Math.max(0,Math.floor((-z-80)/CHUNK_LENGTH));const centerZ=-80-index*CHUNK_LENGTH;const t=THREE.MathUtils.clamp((centerZ+CHUNK_LENGTH/2-z)/CHUNK_LENGTH,0,1);return routeCurveOffset(index,t)}
 function makeRouteChunk(index){
@@ -195,7 +203,7 @@ function makeRouteChunk(index){
  const items=[],jumpPads=[];
  const terrain=new THREE.Mesh(new THREE.PlaneGeometry(80,CHUNK_LENGTH),stone);terrain.rotation.x=-Math.PI/2;terrain.position.set(0,-.36,centerZ);terrain.receiveShadow=true;group.add(terrain);
  const roadGeo=new THREE.BufferGeometry(),roadVerts=[],roadUvs=[],roadIndices=[],roadSegments=40,roadAcross=4;
- for(let j=0;j<=roadSegments;j++){const t=j/roadSegments,z=centerZ+CHUNK_LENGTH/2-t*CHUNK_LENGTH,cx=curveX(t);for(let k=0;k<=roadAcross;k++){const u=k/roadAcross;roadVerts.push(cx+(u-.5)*13,.012+routeHeight(z),z);roadUvs.push(u,t);if(j<roadSegments&&k<roadAcross){const a=j*(roadAcross+1)+k,b=a+roadAcross+1;roadIndices.push(a,a+1,b,b,a+1,b+1)}}}
+ for(let j=0;j<=roadSegments;j++){const t=j/roadSegments,z=centerZ+CHUNK_LENGTH/2-t*CHUNK_LENGTH,cx=curveX(t);for(let k=0;k<=roadAcross;k++){const u=k/roadAcross;const roadX=cx+(u-.5)*13;roadVerts.push(roadX,.012+routeHeight(z,roadX-cx),z);roadUvs.push(u,t);if(j<roadSegments&&k<roadAcross){const a=j*(roadAcross+1)+k,b=a+roadAcross+1;roadIndices.push(a,a+1,b,b,a+1,b+1)}}}
  roadGeo.setAttribute('position',new THREE.Float32BufferAttribute(roadVerts,3));roadGeo.setAttribute('uv',new THREE.Float32BufferAttribute(roadUvs,2));roadGeo.setIndex(roadIndices);roadGeo.computeVertexNormals();const roadMesh=new THREE.Mesh(roadGeo,roadMat);roadMesh.receiveShadow=true;group.add(roadMesh);
  const floor=world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(0,-.225,centerZ));world.createCollider(RAPIER.ColliderDesc.cuboid(40,.25,CHUNK_LENGTH/2).setFriction(1.1),floor);bodies.push(floor);
  for(const side of [-1,1]){
@@ -310,7 +318,7 @@ function frame(){
   const np=floatBody.translation(),nr=floatBody.rotation();
   if(jumpHeight>0||jumpVelocity>0){jumpVelocity-=JUMP_GRAVITY*dt;jumpHeight=Math.max(0,jumpHeight+jumpVelocity*dt);if(jumpHeight===0)jumpVelocity=0;}
   updateStreaming(np.z);checkCollisions(np);
-  float.position.set(np.x,np.y-.45+routeHeight(np.z)+jumpHeight,np.z);float.quaternion.set(nr.x,nr.y,nr.z,nr.w);
+  const roadRideHeight=routeHeight(np.z,np.x-routeCenterX(np.z));\n  float.position.set(np.x,np.y-.45+roadRideHeight+jumpHeight,np.z);\n  // The float rocks with the changing road grade and small stone bumps.\n  const roadPitch=Math.atan(roadSlopeZ(np.x-routeCenterX(np.z),np.z));\n  const roadRoll=Math.atan(roadSlopeX(np.x-routeCenterX(np.z),np.z));\n  float.rotation.x=roadPitch*.72;float.rotation.z=roadRoll*.72;float.quaternion.set(nr.x,nr.y,nr.z,nr.w);
   const targetLean=-steer*Math.min(.30,.035+driveSpeed*.014);
   bodyLean+=(targetLean-bodyLean)*Math.min(1,dt*4.5);
   floatUpper.rotation.z=bodyLean;
