@@ -10,6 +10,8 @@
 #help{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);font-size:11px;white-space:nowrap;color:#e5e5e5;background:#101820aa;padding:7px 10px;border-radius:10px}
 #buttons{position:absolute;right:12px;top:86px;display:flex;gap:8px;pointer-events:auto}
 button{border:1px solid #ffffff55;background:#182630dd;color:white;border-radius:10px;padding:10px 12px;font-weight:700}
+#distanceControl{display:flex;align-items:center;gap:6px;background:#182630dd;border:1px solid #ffffff55;border-radius:10px;padding:7px 9px;font-size:11px;font-weight:700;pointer-events:auto}
+#renderDistance{max-width:82px;background:#263945;color:#fff;border:1px solid #ffffff55;border-radius:7px;padding:5px;font:inherit}
 #touch{position:absolute;bottom:22px;left:18px;right:18px;display:none;align-items:flex-end;justify-content:flex-start;pointer-events:none}
 #stickBase{width:154px;height:154px;border-radius:50%;border:2px solid #ffffff80;background:radial-gradient(circle,#ffffff18 0 35%,#10182099 36% 100%);box-shadow:0 5px 22px #0008;display:grid;place-items:center;pointer-events:auto;touch-action:none;position:relative}
 #stickBase:before,#stickBase:after{content:"";position:absolute;background:#ffffff25;pointer-events:none}
