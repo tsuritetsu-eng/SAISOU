@@ -227,10 +227,10 @@ function makeRouteChunk(index){
  // Torii gates appear periodically, with collision on pillars and crossbeam.
  if(index%3===1||index%4===3){
   const gateZ=centerZ-29,gateX=curveX((centerZ+24-gateZ)/CHUNK_LENGTH),toriiRed=mat(0x9b2924,.72),toriiDark=mat(0x38251e,.8);
-  for(const side of [-1,1]){const gx=gateX+side*4.05;const pillar=new THREE.Mesh(new THREE.CylinderGeometry(.34,.42,7.05,12),toriiRed);pillar.position.set(gx,3.525,gateZ);pillar.castShadow=true;group.add(pillar);const foot=new THREE.Mesh(new THREE.CylinderGeometry(.55,.55,.28,12),toriiDark);foot.position.set(gx,.16,gateZ);group.add(foot);obstacles.push({x:gx,z:gateZ,hx:.48,hz:.62,kind:'toriiPost'});}
-  const lintel=new THREE.Mesh(new THREE.BoxGeometry(9.7,.48,.72),toriiRed);lintel.position.set(gateX,7.05,gateZ);lintel.castShadow=true;group.add(lintel);
-  const topBeam=new THREE.Mesh(new THREE.BoxGeometry(10.8,.34,1.05),toriiDark);topBeam.position.set(gateX,7.45,gateZ);topBeam.castShadow=true;group.add(topBeam);
-  obstacles.push({x:gateX,z:gateZ,hx:5.35,hz:.72,kind:'toriiBeam',bottom:6.81});
+  for(const side of [-1,1]){const gx=gateX+side*4.05;const pillar=new THREE.Mesh(new THREE.CylinderGeometry(.34,.42,7.59,12),toriiRed);pillar.position.set(gx,3.795,gateZ);pillar.castShadow=true;group.add(pillar);const foot=new THREE.Mesh(new THREE.CylinderGeometry(.55,.55,.28,12),toriiDark);foot.position.set(gx,.16,gateZ);group.add(foot);obstacles.push({x:gx,z:gateZ,hx:.48,hz:.62,kind:'toriiPost'});}
+  const lintel=new THREE.Mesh(new THREE.BoxGeometry(9.7,.48,.72),toriiRed);lintel.position.set(gateX,7.59,gateZ);lintel.castShadow=true;group.add(lintel);
+  const topBeam=new THREE.Mesh(new THREE.BoxGeometry(10.8,.34,1.05),toriiDark);topBeam.position.set(gateX,7.99,gateZ);topBeam.castShadow=true;group.add(topBeam);
+  obstacles.push({x:gateX,z:gateZ,hx:5.35,hz:.72,kind:'toriiBeam',bottom:7.35});
  }
  // Small ramps launch the float when crossed at speed.
  const jumpZ=centerZ-7,jumpX=curveX(.65);
@@ -384,7 +384,7 @@ function frame(){
   // Animate pedestrians in loaded route sections.
   for(const chunk of streamedChunks.values())for(const h of chunk.pedestrians){const sway=Math.sin(elapsed*.85+h.phase);h.group.position.x=h.baseX+sway*1.25;h.group.position.z=h.baseZ+Math.sin(elapsed*.48+h.phase)*.22;h.group.rotation.y=sway>0?Math.PI/2:-Math.PI/2;h.legs[0].rotation.x=Math.sin(elapsed*4+h.phase)*.28;h.legs[1].rotation.x=-Math.sin(elapsed*4+h.phase)*.28;}
   // Pick up course items. Red talismans make Enma stumble; blue orbs charge boost.
-  for(const chunk of streamedChunks.values())for(const pad of chunk.jumpPads){if(!pad.used&&Math.abs(np.z-pad.z)<1.5&&Math.abs(np.x-pad.x)<2.0){pad.used=true;if(driveSpeed>5){jumpVelocity=5.8;jumpHeight=Math.max(jumpHeight,.08);document.querySelector('#status').textContent='ジャンプ！着地に備えよう';}}}
+  for(const chunk of streamedChunks.values())for(const pad of chunk.jumpPads){const gateInThisSection=chunk.index%3===1||chunk.index%4===3;if(!gateInThisSection&&!pad.used&&Math.abs(np.z-pad.z)<1.5&&Math.abs(np.x-pad.x)<2.0){pad.used=true;if(driveSpeed>5){jumpVelocity=5.8;jumpHeight=Math.max(jumpHeight,.08);document.querySelector('#status').textContent='ジャンプ！着地に備えよう';}}}
   for(const chunk of streamedChunks.values())for(const item of chunk.items){
    if(item.collected)continue;
    item.group.rotation.y+=dt*1.8;item.group.position.y=item.baseY+Math.sin(elapsed*3+item.phase)*.13;
