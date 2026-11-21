@@ -133,6 +133,11 @@ floatBody.setEnabledRotations(false,true,false,true);floatBody.setGravityScale(0
 let driveSpeed=0,driveYaw=0,sideSlip=0,bodyLean=0;
 const MAX_SPEED=18.5,ENMA_SPEED=20.5,ENMA_START_DISTANCE=0;
 let boostCharge=0,boostTime=0,stumbleTime=0;
+// Difficulty rises gently every 48 m section (displayed as a round).
+function currentRound(){return Math.max(1,Math.floor(travelDistance/48)+1)}
+function enmaChasePace(){return ENMA_SPEED+Math.min(2.2,(currentRound()-1)*.22)}
+function enmaStumblePace(){return Math.min(13.6,5.5+(currentRound()-1)*.9)}
+function enmaStumbleDuration(){return Math.max(1.8,4.5-(currentRound()-1)*.3)}
 const BOOST_COST=35,BOOST_DURATION=3.4,BOOST_SPEED=34.5;
 // simple Enma pursuer, stylized rather than graphic
 const demon=new THREE.Group();demon.visible=false;scene.add(demon);
@@ -318,7 +323,7 @@ function frame(){
    item.group.rotation.y+=dt*1.8;item.group.position.y=item.baseY+Math.sin(elapsed*3+item.phase)*.13;
    if(Math.hypot(np.x-item.group.position.x,np.z-item.group.position.z)<1.55){
     item.collected=true;item.group.visible=false;
-    if(item.kind==='slip'){stumbleTime=4.5;chaseDistance=Math.min(90,chaseDistance+7);document.querySelector('#status').textContent='妨害成功！閻魔がよろめいている！';}
+    if(item.kind==='slip'){stumbleTime=enmaStumbleDuration();chaseDistance=Math.min(90,chaseDistance+7);document.querySelector('#status').textContent=`妨害成功！閻魔がよろめいている！（約${enmaStumbleDuration().toFixed(1)}秒）`;}
     else{boostCharge=Math.min(100,boostCharge+35);document.querySelector('#status').textContent='ブーストエネルギー +35！';}
    }
   }
@@ -328,7 +333,7 @@ function frame(){
    document.querySelector('#status').textContent='閻魔が目を覚ました！追跡開始！';
   }
   if(enmaStarted){
-   const enmaPace=stumbleTime>0?5.5:ENMA_SPEED;
+   const enmaPace=stumbleTime>0?enmaStumblePace():enmaChasePace();
    chaseDistance=THREE.MathUtils.clamp(chaseDistance+(speed-enmaPace)*dt,1.8,90);
    const targetZ=np.z+chaseDistance;
    const enmaWobble=stumbleTime>0?Math.sin(elapsed*13)*1.35:0;
@@ -341,7 +346,7 @@ function frame(){
   document.querySelector('#warning').style.opacity=(!escaped&&chaseDistance<19)?1:0;
   if(!enmaStarted&&!escaped)document.querySelector('#status').textContent=`閻魔はまだ眠っている…（追跡開始まで ${Math.max(0,Math.ceil(ENMA_START_DISTANCE-travelDistance))} m）`;
   else if(!escaped&&chaseDistance>=19&&stumbleTime<=0&&boostTime<=0)document.querySelector('#status').textContent='閻魔から逃走中';
-  document.querySelector('#stats').innerHTML=`速度 ${Math.round(speed*3.6)} km/h<br>閻魔との距離 ${Math.round(chaseDistance)} m<br>走行距離 ${Math.floor(travelDistance)} m<br>区画 ${Math.max(1,Math.floor(travelDistance/48)+1)}`;
+  document.querySelector('#stats').innerHTML=`速度 ${Math.round(speed*3.6)} km/h<br>閻魔との距離 ${Math.round(chaseDistance)} m<br>走行距離 ${Math.floor(travelDistance)} m<br>ラウンド ${currentRound()}`;
   document.querySelector('#speedFill').style.width=`${Math.min(100,speed/BOOST_SPEED*100)}%`;
   document.querySelector('#boostFill').style.width=`${boostCharge}%`;
   document.querySelector('#boostButton').textContent=boostTime>0?'BOOST!':`ブースト ${Math.floor(boostCharge)}%`;
