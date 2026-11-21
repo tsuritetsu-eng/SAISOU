@@ -27,3 +27,34 @@ button{border:1px solid #ffffff55;background:#182630dd;color:white;border-radius
 
 .gauge-label{font-size:10px;color:#dce8ed;margin-top:4px}.boost-track{height:6px;margin-top:3px}.boost-track div{background:linear-gradient(90deg,#59d8ff,#b4f5ff);height:100%;width:0;border-radius:99px;transition:width .12s linear}#boostButton:disabled{opacity:.48}#boostButton.boost-active{background:#146b83;border-color:#9ceeff;box-shadow:0 0 18px #51dfff99}
 @media(max-width:700px){#buttons{bottom:190px;gap:6px}#buttons button{padding:9px 10px;font-size:11px}}
+
+
+/* Bright festival UI theme */
+:root{color-scheme:light}
+#hud{color:#263746;text-shadow:none}
+.panel{background:rgba(255,250,239,.92);border:1px solid rgba(125,91,55,.22);box-shadow:0 4px 18px rgba(40,31,20,.14);backdrop-filter:blur(12px)}
+#title{color:#743b25}
+#stats{color:#344553}
+.speed-track{background:#d8d0c3}
+.speed-track div{background:linear-gradient(90deg,#55b98b,#e8b94e,#e87555)}
+.gauge-label{color:#52616b}
+#warning{color:#b52f25;text-shadow:0 1px 2px #fff}
+#help{color:#344553;background:rgba(255,250,239,.92);border:1px solid #b9a88f;box-shadow:0 3px 12px #24180e22}
+button{background:linear-gradient(180deg,#fffdf8,#eee3d2);color:#49382c;border:1px solid #b9a58a;box-shadow:0 3px 9px #24180e20}
+button:active{background:#ead7bb}
+#distanceControl{background:rgba(255,250,239,.96);color:#49382c;border:1px solid #b9a58a;box-shadow:0 3px 9px #24180e20}
+#renderDistance{background:#fffdf8;color:#49382c;border:1px solid #c5b49b}
+#stickBase{border:2px solid #fff;background:radial-gradient(circle,#fff9 0 35%,#f2e7d4d9 36% 100%);box-shadow:0 5px 22px #21180f30}
+#stickBase:before,#stickBase:after{background:#8f795c55}
+#stickKnob{background:linear-gradient(145deg,#f2d49b,#c77b52);border:2px solid #fff;box-shadow:0 4px 12px #4b302b55}
+#stickHint{color:#344553;background:rgba(255,250,239,.94);border:1px solid #c9b89e;text-shadow:none;box-shadow:0 3px 12px #24180e22}
+.touchbtn{background:rgba(255,250,239,.94);color:#49382c;border:1px solid #b9a58a;box-shadow:0 3px 10px #24180e25}
+#boostButton:disabled{opacity:.55}
+#boostButton.boost-active{background:#c9f3f7;color:#07566a;border-color:#62c8d8;box-shadow:0 0 18px #51dfff66}
+#overlay{background:rgba(246,239,224,.94);color:#263746}
+#overlay .card{background:linear-gradient(145deg,#fffdf8,#f1e5d2);border:1px solid #cbb99d;box-shadow:0 18px 55px #4c38252e;color:#263746}
+#overlay h1{color:#743b25}
+#overlay p{color:#485864}
+#start{background:linear-gradient(180deg,#c96a46,#a9432e);color:#fff;border:1px solid #8e3525;box-shadow:0 5px 14px #8b3c2b40}
+#start:hover{filter:brightness(1.06)}
+@media(max-width:700px){#help{background:rgba(255,250,239,.94)}}
