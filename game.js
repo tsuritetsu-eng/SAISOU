@@ -7,14 +7,14 @@ const mount=document.querySelector('#game');
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x9bb2bb);scene.fog=new THREE.Fog(0x9bb2bb,38,150);
 const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.1,250);
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,1.65));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=false;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.12;mount.appendChild(renderer.domElement);
-scene.add(new THREE.HemisphereLight(0xdcecff,0x594637,1.35));
-scene.add(new THREE.AmbientLight(0x8b9aa3,.28));
-const sun=new THREE.DirectionalLight(0xffd6a0,3.1);sun.position.set(-25,45,20);sun.castShadow=false;scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xdcecff,0x594637,1.65));
+scene.add(new THREE.AmbientLight(0x8b9aa3,.65));
+const sun=new THREE.DirectionalLight(0xffd6a0,0);sun.position.set(-25,45,20);sun.castShadow=false;scene.add(sun);
 const mat=(c,r=.85,m=0)=>new THREE.MeshStandardMaterial({color:c,roughness:r,metalness:m});
 function surfaceTexture(base,kind='noise'){const c=document.createElement('canvas');c.width=c.height=512;const x=c.getContext('2d');x.fillStyle=base;x.fillRect(0,0,512,512);for(let i=0;i<8500;i++){const v=Math.random()*34-17;x.fillStyle=`rgba(${v>0?255:0},${v>0?255:0},${v>0?255:0},${Math.abs(v)/500})`;x.fillRect(Math.random()*512,Math.random()*512,Math.random()*4+1,Math.random()*3+1)}if(kind==='wood'){x.strokeStyle='rgba(25,12,5,.16)';for(let i=0;i<28;i++){const y=Math.random()*512;x.beginPath();x.moveTo(0,y);x.bezierCurveTo(160,y-8,330,y+9,512,y);x.stroke()}}if(kind==='stone'){x.strokeStyle='rgba(20,25,25,.2)';for(let y=0;y<512;y+=64){x.beginPath();x.moveTo(0,y);x.lineTo(512,y);x.stroke()}for(let y=0;y<512;y+=64)for(let xx=(y/64%2)*48;xx<512;xx+=96){x.beginPath();x.moveTo(xx,y);x.lineTo(xx,y+64);x.stroke()}}const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;return t}
 const roadMat=mat(0x777b7c,.98), stone=mat(0xaaa69a,.95), wood=mat(0x765039,.82), darkWood=mat(0x38291f,.8), plaster=mat(0xe0d3b9,.95), roof=mat(0x303b40,.9), red=mat(0x8e3025,.72), gold=mat(0xc59a4d,.38,.62);
 stone.map=surfaceTexture('#a39e91','stone');roadMat.map=surfaceTexture('#505657','stone');wood.map=surfaceTexture('#765039','wood');plaster.map=surfaceTexture('#d9ccb2');
-function box(parent,x,y,z,sx,sy,sz,material){const o=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),material);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;parent.add(o);return o}
+function box(parent,x,y,z,sx,sy,sz,material){const o=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),material);o.position.set(x,y,z);o.castShadow=false;o.receiveShadow=false;parent.add(o);return o}
 const ground=box(scene,0,-.38,0,170,.7,170,stone);
 const world=new RAPIER.World({x:0,y:-9.81,z:0});
 function fixedBox(x,y,z,hx,hy,hz){const b=world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(x,y,z));world.createCollider(RAPIER.ColliderDesc.cuboid(hx,hy,hz),b);}
@@ -32,7 +32,7 @@ function building(x,z,w,d,h,variant=0){
  // Instanced ceramic roof tiles: dense detail without hundreds of draw calls.
  const tileGeo=new THREE.CylinderGeometry(.145,.145,d+1.12,10,1);tileGeo.rotateX(Math.PI/2);
  const tiles=new THREE.InstancedMesh(tileGeo,mat(0x465258,.78,.12),Math.max(5,Math.floor((w+1)/.27)));const dummy=new THREE.Object3D();
- for(let i=0;i<tiles.count;i++){dummy.position.set(-w/2-.35+(i+.5)*(w+1)/tiles.count,h+.56,0);dummy.updateMatrix();tiles.setMatrixAt(i,dummy.matrix)}tiles.castShadow=true;tiles.receiveShadow=true;g.add(tiles);
+ for(let i=0;i<tiles.count;i++){dummy.position.set(-w/2-.35+(i+.5)*(w+1)/tiles.count,h+.56,0);dummy.updateMatrix();tiles.setMatrixAt(i,dummy.matrix)}tiles .castShadow=false;tiles .receiveShadow=false;g.add(tiles);
  box(g,0,h+.68,0,.38,.28,d+1.35,darkWood);box(g,0,h+.03,d/2+.56,w+1.25,.18,.42,darkWood);
  for(const sx of [-1,1])box(g,sx*(w/2-.18),h/2,d/2+.075,.22,h,.18,darkWood);
  box(g,0,h*.45,d/2+.105,w*.72,h*.36,.12,darkWood);
