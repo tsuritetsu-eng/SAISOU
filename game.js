@@ -143,19 +143,30 @@ const worldMap={};
 let chaseDistance=34,camMode=0,started=false,gameOver=false,elapsed=0,shake=0,travelDistance=0,escaped=false;
 const streamedChunks=new Map();const CHUNK_LENGTH=48,CHUNK_BEHIND=2,CHUNK_AHEAD=5;
 const keys={};
+const joystick={x:0,y:0,active:false,pointerId:null};
 addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();keys[e.code]=true;if(e.code==='KeyC')toggleCamera()});
 addEventListener('keyup',e=>{keys[e.code]=false});
 addEventListener('blur',()=>{for(const k in keys)keys[k]=false});
-// Mobile controls: hold a button to keep the corresponding key active.
-document.querySelectorAll('.touchbtn[data-key]').forEach(btn=>{
- const key=btn.dataset.key;
- const release=()=>{keys[key]=false;btn.style.transform='';btn.style.background='#15232ccc'};
- btn.addEventListener('pointerdown',e=>{e.preventDefault();keys[key]=true;btn.setPointerCapture?.(e.pointerId);btn.style.transform='scale(.94)';btn.style.background='#526a78'});
- ['pointerup','pointercancel','lostpointercapture','pointerleave'].forEach(type=>btn.addEventListener(type,release));
-});
+ // Analog virtual joystick: horizontal = steering, vertical = throttle / brake.
+const stickBase=document.querySelector('#stickBase');
+const stickKnob=document.querySelector('#stickKnob');
+function updateStick(e){
+ const r=stickBase.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
+ const max=r.width*.34,dx=e.clientX-cx,dy=e.clientY-cy,len=Math.hypot(dx,dy),scale=len>max?max/len:1;
+ const x=dx*scale,y=dy*scale;
+ joystick.x=x/max;joystick.y=y/max;
+ stickKnob.style.transform='translate('+x+'px,'+y+'px)';
+}
+function releaseStick(){
+ joystick.x=0;joystick.y=0;joystick.active=false;joystick.pointerId=null;
+ stickKnob.style.transform='translate(0px,0px)';
+}
+stickBase.addEventListener('pointerdown',e=>{e.preventDefault();joystick.active=true;joystick.pointerId=e.pointerId;stickBase.setPointerCapture(e.pointerId);updateStick(e)});
+stickBase.addEventListener('pointermove',e=>{if(joystick.active&&e.pointerId===joystick.pointerId)updateStick(e)});
+['pointerup','pointercancel','lostpointercapture'].forEach(type=>stickBase.addEventListener(type,releaseStick));
 function toggleCamera(){camMode=(camMode+1)%3;document.querySelector('#camera').textContent=['視点：追尾','視点：近距離','視点：一人称'][camMode]}
 document.querySelector('#camera').onclick=toggleCamera;
-function reset(){for(const chunk of streamedChunks.values())disposeChunk(chunk);streamedChunks.clear();driveSpeed=0;driveYaw=0;sideSlip=0;bodyLean=0;travelDistance=0;escaped=false;for(const k in keys)keys[k]=false;floatBody.setTranslation({x:0,y:1.8,z:22},true);floatBody.setLinvel({x:0,y:0,z:0},true);floatBody.setAngvel({x:0,y:0,z:0},true);floatBody.setRotation({x:0,y:0,z:0,w:1},true);float.rotation.set(0,0,0);floatUpper.rotation.set(0,0,0);chaseDistance=34;elapsed=0;gameOver=false;demon.position.set(0,0,56);document.querySelector('#overlay').style.display='none';document.querySelector('#overlay h1').textContent='祭走';document.querySelector('#start').textContent='出走する';document.querySelector('#status').textContent='順路の矢印に従って進もう';started=true}
+function reset(){for(const chunk of streamedChunks.values())disposeChunk(chunk);streamedChunks.clear();driveSpeed=0;driveYaw=0;sideSlip=0;bodyLean=0;travelDistance=0;escaped=false;for(const k in keys)keys[k]=false;releaseStick();floatBody.setTranslation({x:0,y:1.8,z:22},true);floatBody.setLinvel({x:0,y:0,z:0},true);floatBody.setAngvel({x:0,y:0,z:0},true);floatBody.setRotation({x:0,y:0,z:0,w:1},true);float.rotation.set(0,0,0);floatUpper.rotation.set(0,0,0);chaseDistance=34;elapsed=0;gameOver=false;demon.position.set(0,0,56);document.querySelector('#overlay').style.display='none';document.querySelector('#overlay h1').textContent='祭走';document.querySelector('#start').textContent='出走する';document.querySelector('#status').textContent='順路の矢印に従って進もう';started=true}
 document.querySelector('#reset').onclick=reset;document.querySelector('#start').onclick=reset;
 demon.position.set(0,0,56);
 const clock=new THREE.Clock();
@@ -233,8 +244,9 @@ function frame(){
  if(started&&!gameOver){
   elapsed+=dt;
   const p=floatBody.translation();
-  const steer=(keys.ArrowLeft||keys.KeyA?-1:0)+(keys.ArrowRight||keys.KeyD?1:0);
-  const throttle=keys.ArrowUp||keys.KeyW,brake=keys.Space||keys.ArrowDown||keys.KeyS;
+  const keySteer=(keys.ArrowLeft||keys.KeyA?-1:0)+(keys.ArrowRight||keys.KeyD?1:0);
+  const steer=THREE.MathUtils.clamp(keySteer+joystick.x,-1,1);
+  const throttle=keys.ArrowUp||keys.KeyW||joystick.y<-.22,brake=keys.Space||keys.ArrowDown||keys.KeyS||joystick.y>.32;
   if(throttle)driveSpeed=Math.min(MAX_SPEED,driveSpeed+10.5*dt);
   else driveSpeed=Math.max(0,driveSpeed-1.15*dt);
   if(brake)driveSpeed=Math.max(0,driveSpeed-19*dt);
