@@ -61,6 +61,7 @@ for(let z=-60;z<=60;z+=15){lantern(-5.7,z);lantern(5.7,z)}
 // shrine gate in the distance
 const gate=new THREE.Group();scene.add(gate);gate.position.set(0,0,-69);
 box(gate,-3,3,0,.45,6,.45,red);box(gate,3,3,0,.45,6,.45,red);box(gate,0,6.1,0,8,.5,.7,darkWood);box(gate,0,6.7,0,9,.35,1,gold);
+const staticGateObstacles=[{x:-3,z:-69,hx:.42,hz:.55,kind:'toriiPost'},{x:3,z:-69,hx:.42,hz:.55,kind:'toriiPost'},{x:0,z:-69,hx:4.7,hz:.58,kind:'toriiBeam',bottom:6.78}];
 
 // Dynamic street hazards: crossing festival-goers and dropped street objects
 const personMaterials=[mat(0x345b78),mat(0x8d4938),mat(0xd0b58a),mat(0x454b62)];
@@ -133,7 +134,7 @@ floatBody.setEnabledRotations(false,true,false,true);floatBody.setGravityScale(0
 let driveSpeed=0,driveYaw=0,sideSlip=0,bodyLean=0;
 let jumpHeight=0,jumpVelocity=0;const JUMP_GRAVITY=13.5;
 const MAX_SPEED=18.5,ENMA_SPEED=20.5,ENMA_START_DISTANCE=0;
-let boostCharge=0,boostTime=0,stumbleTime=0;
+let boostCharge=0,boostTime=0,stumbleTime=0,debuffTime=0;
 // Difficulty rises gently every 48 m section (displayed as a round).
 function currentRound(){return Math.max(1,Math.floor(travelDistance/48)+1)}
 function enmaChasePace(){return ENMA_SPEED+Math.min(2.2,(currentRound()-1)*.22)}
@@ -177,7 +178,7 @@ function toggleCamera(){camMode=(camMode+1)%4;document.querySelector('#camera').
 
 document.querySelector('#camera').onclick=toggleCamera;
 document.querySelector('#boostButton').onclick=activateBoost;
-function reset(){for(const chunk of streamedChunks.values())disposeChunk(chunk);streamedChunks.clear();driveSpeed=0;driveYaw=0;sideSlip=0;bodyLean=0;jumpHeight=0;jumpVelocity=0;boostCharge=0;boostTime=0;stumbleTime=0;travelDistance=0;escaped=false;for(const k in keys)keys[k]=false;releaseStick();floatBody.setTranslation({x:0,y:1.8,z:22},true);floatBody.setLinvel({x:0,y:0,z:0},true);floatBody.setAngvel({x:0,y:0,z:0},true);floatBody.setRotation({x:0,y:0,z:0,w:1},true);float.rotation.set(0,0,0);floatUpper.rotation.set(0,0,0);chaseDistance=32;enmaStarted=false;demon.visible=true;elapsed=0;gameOver=false;demon.position.set(0,0,56);document.querySelector('#overlay').style.display='none';document.querySelector('#overlay h1').textContent='祭走';document.querySelector('#start').textContent='出走する';document.querySelector('#status').textContent='順路の矢印に従って進もう';started=true}
+function reset(){for(const chunk of streamedChunks.values())disposeChunk(chunk);streamedChunks.clear();driveSpeed=0;driveYaw=0;sideSlip=0;bodyLean=0;jumpHeight=0;jumpVelocity=0;boostCharge=0;boostTime=0;stumbleTime=0;debuffTime=0;travelDistance=0;escaped=false;for(const k in keys)keys[k]=false;releaseStick();floatBody.setTranslation({x:0,y:1.8,z:22},true);floatBody.setLinvel({x:0,y:0,z:0},true);floatBody.setAngvel({x:0,y:0,z:0},true);floatBody.setRotation({x:0,y:0,z:0,w:1},true);float.rotation.set(0,0,0);floatUpper.rotation.set(0,0,0);chaseDistance=32;enmaStarted=false;demon.visible=true;elapsed=0;gameOver=false;demon.position.set(0,0,56);document.querySelector('#overlay').style.display='none';document.querySelector('#overlay h1').textContent='祭走';document.querySelector('#start').textContent='出走する';document.querySelector('#status').textContent='順路の矢印に従って進もう';started=true}
 document.querySelector('#reset').onclick=reset;document.querySelector('#start').onclick=reset;
 demon.position.set(0,0,56);demon.visible=true;
 const clock=new THREE.Clock();
@@ -212,6 +213,14 @@ function makeRouteChunk(index){
   for(const y of [.55,1.15])for(let j=0;j<postPositions.length-1;j++){const a=postPositions[j],b=postPositions[j+1],dx=b.x-a.x,dz=b.z-a.z,len=Math.hypot(dx,dz);const rail=new THREE.Mesh(new THREE.BoxGeometry(.18,.18,len),wood);rail.position.set((a.x+b.x)/2,y,(a.z+b.z)/2);rail.rotation.y=Math.atan2(dx,dz);rail.castShadow=true;group.add(rail);}
   for(let j=0;j<8;j++){const t=(j+.5)/8,z=centerZ+24-t*CHUNK_LENGTH,x=curveX(t)+side*7.35;const reflector=new THREE.Mesh(new THREE.BoxGeometry(.12,.32,.08),gold);reflector.position.set(x-side*.13,.9,z);group.add(reflector);}
  }
+ // Torii gates appear periodically, with collision on pillars and crossbeam.
+ if(index%3===1||index%4===3){
+  const gateZ=centerZ-29,gateX=curveX((centerZ+24-gateZ)/CHUNK_LENGTH),toriiRed=mat(0x9b2924,.72),toriiDark=mat(0x38251e,.8);
+  for(const side of [-1,1]){const gx=gateX+side*4.05;const pillar=new THREE.Mesh(new THREE.CylinderGeometry(.34,.42,6.35,12),toriiRed);pillar.position.set(gx,3.15,gateZ);pillar.castShadow=true;group.add(pillar);const foot=new THREE.Mesh(new THREE.CylinderGeometry(.55,.55,.28,12),toriiDark);foot.position.set(gx,.16,gateZ);group.add(foot);obstacles.push({x:gx,z:gateZ,hx:.48,hz:.62,kind:'toriiPost'});}
+  const lintel=new THREE.Mesh(new THREE.BoxGeometry(9.7,.48,.72),toriiRed);lintel.position.set(gateX,6.48,gateZ);lintel.castShadow=true;group.add(lintel);
+  const topBeam=new THREE.Mesh(new THREE.BoxGeometry(10.8,.34,1.05),toriiDark);topBeam.position.set(gateX,6.88,gateZ);topBeam.castShadow=true;group.add(topBeam);
+  obstacles.push({x:gateX,z:gateZ,hx:5.35,hz:.72,kind:'toriiBeam',bottom:6.24});
+ }
  // Small ramps launch the float when crossed at speed.
  const jumpZ=centerZ-7,jumpX=curveX(.65);
  const ramp=new THREE.Mesh(new THREE.BoxGeometry(3.4,.34,2.6),gold);ramp.position.set(jumpX,.22+routeHeight(jumpZ),jumpZ);ramp.rotation.x=-.10;ramp.castShadow=true;group.add(ramp);
@@ -245,13 +254,14 @@ function makeRouteChunk(index){
  for(let j=0;j<2;j++){const t=.28+j*.43,z=centerZ+24-t*CHUNK_LENGTH,x=curveX(t)+(j%2===0?-5.35:5.35);const pole=new THREE.Mesh(new THREE.CylinderGeometry(.22,.29,7.2,10),darkWood);pole.position.set(x,3.6,z);pole.castShadow=true;group.add(pole);const arm=new THREE.Mesh(new THREE.BoxGeometry(1.9,.18,.2),wood);arm.position.set(x,6.65,z);group.add(arm);for(const dx of [-.72,.72]){const ins=new THREE.Mesh(new THREE.CylinderGeometry(.08,.08,.42,8),gold);ins.position.set(x+dx,6.92,z);group.add(ins)}obstacles.push({x,z,hx:.62,hz:.62});}
  // Pickups: red talismans trip Enma; blue orbs charge boost.
  const pickupSpecs=index===0
-  ?[{x:0,z:centerZ+53,kind:'slip'},{x:0,z:centerZ+30,kind:'boost'},{x:1.8,z:centerZ+8,kind:'slip'}]
-  :[{x:index%2===0?-1.8:1.8,z:centerZ+14,kind:'slip'},{x:0,z:centerZ-2,kind:'boost'},{x:index%2===0?1.8:-1.8,z:centerZ-18,kind:'slip'}];
+  ?[{x:0,z:centerZ+30,kind:'boost'},{x:1.8,z:centerZ+8,kind:'slip'}]
+  :[{x:0,z:centerZ-2,kind:'boost'},...(index%2===0?[{x:index%4===0?-1.8:1.8,z:centerZ+14,kind:'slip'}]:[]),...(index%3===1?[{x:index%2===0?1.8:-1.8,z:centerZ-18,kind:'debuff'}]:[])];
  for(const spec of pickupSpecs){
   const g=new THREE.Group();g.position.set(curveX(THREE.MathUtils.clamp((centerZ+24-spec.z)/CHUNK_LENGTH,0,1))+spec.x,1.15,spec.z);group.add(g);
-  const color=spec.kind==='slip'?0xff6848:0x58d8ff;
+  const color=spec.kind==='slip'?0xff6848:(spec.kind==='debuff'?0xb46cff:0x58d8ff);
   const orb=new THREE.Mesh(new THREE.IcosahedronGeometry(.48,2),new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:.65,metalness:.35,roughness:.25}));g.add(orb);
   const ring=new THREE.Mesh(new THREE.TorusGeometry(.68,.075,8,24),new THREE.MeshStandardMaterial({color:spec.kind==='slip'?0xffc06b:0xa9f4ff,emissive:color,emissiveIntensity:.35}));ring.rotation.x=Math.PI/2;g.add(ring);
+  if(spec.kind==='debuff'){const mark=new THREE.Mesh(new THREE.TorusGeometry(.25,.07,8,12),mat(0xeee0ff,.3,.2));mark.position.y=.82;g.add(mark);}
   const label=new THREE.Mesh(new THREE.BoxGeometry(.55,.12,.12),gold);label.position.y=.82;g.add(label);
   items.push({group:g,kind:spec.kind,collected:false,baseY:1.15,phase:index*.8+(spec.kind==='slip'?0:1.7)});
  }
@@ -284,8 +294,9 @@ function checkCollisions(p){
  const ex=1.55*Math.abs(Math.cos(driveYaw))+2.4*Math.abs(Math.sin(driveYaw));
  const ez=1.55*Math.abs(Math.sin(driveYaw))+2.4*Math.abs(Math.cos(driveYaw));
  for(const b of blocks){const [x,z,w,d]=b;if(Math.abs(p.x-x)<w/2+ex*.78&&Math.abs(p.z-z)<d/2+ez*.78){triggerGameOver('建物に衝突した！');return true;}}
+ for(const o of staticGateObstacles){if(Math.abs(p.x-o.x)<o.hx+ex*.45&&Math.abs(p.z-o.z)<o.hz+ez*.45){if(o.kind==='toriiBeam'){if(6.52+routeHeight(p.z)+jumpHeight>o.bottom){triggerGameOver('鳥居の横木に衝突した！');return true;}}else{triggerGameOver('鳥居の柱に衝突した！');return true;}}}
  if(Math.abs(p.x-routeCenterX(p.z))+ex>6.45){triggerGameOver('フェンス・柵に衝突した！カーブに沿って走ろう。');return true;}
- for(const chunk of streamedChunks.values())for(const o of chunk.obstacles){if(Math.abs(p.x-o.x)<o.hx+ex*.45&&Math.abs(p.z-o.z)<o.hz+ez*.45){if(o.kind==='overhead'){const roofTop=6.52+routeHeight(p.z)+jumpHeight;if(roofTop>o.bottom){triggerGameOver('山車の屋根が低い横木に衝突した！');return true;}}else{triggerGameOver('コース脇の障害物に衝突した！');return true;}}}
+ for(const chunk of streamedChunks.values())for(const o of chunk.obstacles){if(Math.abs(p.x-o.x)<o.hx+ex*.45&&Math.abs(p.z-o.z)<o.hz+ez*.45){if(o.kind==='overhead'||o.kind==='toriiBeam'){const roofTop=6.52+routeHeight(p.z)+jumpHeight;if(roofTop>o.bottom){triggerGameOver(o.kind==='toriiBeam'?'鳥居の横木に衝突した！':'山車の屋根が低い横木に衝突した！');return true;}}else{triggerGameOver(o.kind==='toriiPost'?'鳥居の柱に衝突した！':'コース脇の障害物に衝突した！');return true;}}}
  for(const h of hazardMeshes){if(h.kind==='obstacle'&&Math.hypot(p.x-h.group.position.x,p.z-h.group.position.z)<1.65){triggerGameOver('路上の障害物に衝突した！');return true;}}
  return false;
 }
@@ -300,8 +311,9 @@ function frame(){
   const throttle=keys.ArrowUp||keys.KeyW||joystick.y<-.22,brake=keys.Space||keys.ArrowDown||keys.KeyS||joystick.y>.32;
   if(boostTime>0)boostTime=Math.max(0,boostTime-dt);
   if(stumbleTime>0)stumbleTime=Math.max(0,stumbleTime-dt);
-  const speedLimit=boostTime>0?BOOST_SPEED:MAX_SPEED;
-  if(throttle)driveSpeed=Math.min(speedLimit,driveSpeed+(boostTime>0?17:10.5)*dt);
+  if(debuffTime>0)debuffTime=Math.max(0,debuffTime-dt);
+  const speedLimit=boostTime>0?BOOST_SPEED:(debuffTime>0?10.5:MAX_SPEED);
+  if(throttle)driveSpeed=Math.min(speedLimit,driveSpeed+(boostTime>0?17:(debuffTime>0?6.2:10.5))*dt);
   else driveSpeed=Math.max(0,driveSpeed-1.15*dt);
   if(brake)driveSpeed=Math.max(0,driveSpeed-19*dt);
   const steerAuthority=.18+Math.min(driveSpeed/MAX_SPEED,1)*.92;
@@ -318,7 +330,12 @@ function frame(){
   const np=floatBody.translation(),nr=floatBody.rotation();
   if(jumpHeight>0||jumpVelocity>0){jumpVelocity-=JUMP_GRAVITY*dt;jumpHeight=Math.max(0,jumpHeight+jumpVelocity*dt);if(jumpHeight===0)jumpVelocity=0;}
   updateStreaming(np.z);checkCollisions(np);
-  const roadRideHeight=routeHeight(np.z,np.x-routeCenterX(np.z));\n  float.position.set(np.x,np.y-.45+roadRideHeight+jumpHeight,np.z);\n  // The float rocks with the changing road grade and small stone bumps.\n  const roadPitch=Math.atan(roadSlopeZ(np.x-routeCenterX(np.z),np.z));\n  const roadRoll=Math.atan(roadSlopeX(np.x-routeCenterX(np.z),np.z));\n  float.rotation.x=roadPitch*.72;float.rotation.z=roadRoll*.72;float.quaternion.set(nr.x,nr.y,nr.z,nr.w);
+  const roadRideHeight=routeHeight(np.z,np.x-routeCenterX(np.z));
+  float.position.set(np.x,np.y-.45+roadRideHeight+jumpHeight,np.z);
+  // The float rocks with the changing road grade and small stone bumps.
+  const roadPitch=Math.atan(roadSlopeZ(np.x-routeCenterX(np.z),np.z));
+  const roadRoll=Math.atan(roadSlopeX(np.x-routeCenterX(np.z),np.z));
+  float.rotation.set(roadPitch*.72,driveYaw,roadRoll*.72,'YXZ');
   const targetLean=-steer*Math.min(.30,.035+driveSpeed*.014);
   bodyLean+=(targetLean-bodyLean)*Math.min(1,dt*4.5);
   floatUpper.rotation.z=bodyLean;
@@ -354,6 +371,7 @@ function frame(){
    if(Math.hypot(np.x-item.group.position.x,np.z-item.group.position.z)<1.55){
     item.collected=true;item.group.visible=false;
     if(item.kind==='slip'){stumbleTime=enmaStumbleDuration();chaseDistance=Math.min(90,chaseDistance+7);document.querySelector('#status').textContent=`妨害成功！閻魔がよろめいている！（約${enmaStumbleDuration().toFixed(1)}秒）`;}
+    else if(item.kind==='debuff'){debuffTime=3.8;driveSpeed=Math.min(driveSpeed,10.5);document.querySelector('#status').textContent='デバフ！しばらく速度が低下する！';}
     else{boostCharge=Math.min(100,boostCharge+35);document.querySelector('#status').textContent='ブーストエネルギー +35！';}
    }
   }
@@ -383,6 +401,7 @@ function frame(){
   document.querySelector('#boostButton').disabled=boostCharge<BOOST_COST||boostTime>0;
   document.querySelector('#boostButton').classList.toggle('boost-active',boostTime>0);
   if(stumbleTime>0)document.querySelector('#status').textContent='閻魔がよろめいている！';
+  else if(debuffTime>0)document.querySelector('#status').textContent=`デバフ中：速度低下 ${debuffTime.toFixed(1)}秒`;
   if(enmaStarted&&!escaped&&chaseDistance<=2)triggerGameOver('閻魔に追いつかれてしまった！');
   if(Math.abs(np.x)>78||Math.abs(np.z)>78){floatBody.setLinvel({x:v.x*.7,y:v.y,z:v.z*.7},true)}
   shake=danger?Math.sin(elapsed*23)*.04:0;
