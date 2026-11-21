@@ -187,6 +187,7 @@ for(const x of [-.38,.38]){const eye=new THREE.Mesh(new THREE.SphereGeometry(.13
 box(demon,0,3.1,.95,1.2,.24,.15,mat(0xb18c3e));
 const worldMap={};
 let chaseDistance=34,camMode=0,started=false,gameOver=false,elapsed=0,shake=0,travelDistance=0,escaped=false;
+const streamedChunks=new Map();const CHUNK_LENGTH=48,CHUNK_BEHIND=2,CHUNK_AHEAD=5;
 const keys={};
 addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();keys[e.code]=true;if(e.code==='KeyC')toggleCamera()});
 addEventListener('keyup',e=>{keys[e.code]=false});
@@ -200,7 +201,7 @@ document.querySelectorAll('.touchbtn[data-key]').forEach(btn=>{
 });
 function toggleCamera(){camMode=(camMode+1)%3;document.querySelector('#camera').textContent=['視点：追尾','視点：近距離','視点：一人称'][camMode]}
 document.querySelector('#camera').onclick=toggleCamera;
-function reset(){driveSpeed=0;driveYaw=0;sideSlip=0;bodyLean=0;travelDistance=0;escaped=false;for(const k in keys)keys[k]=false;floatBody.setTranslation({x:0,y:1.8,z:22},true);floatBody.setLinvel({x:0,y:0,z:0},true);floatBody.setAngvel({x:0,y:0,z:0},true);floatBody.setRotation({x:0,y:0,z:0,w:1},true);float.rotation.set(0,0,0);floatUpper.rotation.set(0,0,0);chaseDistance=34;elapsed=0;gameOver=false;demon.position.set(0,0,56);document.querySelector('#overlay').style.display='none';document.querySelector('#overlay h1').textContent='祭走';document.querySelector('#start').textContent='出走する';document.querySelector('#status').textContent='アクセルを踏んで閻魔を振り切れ！';started=true}
+function reset(){for(const chunk of streamedChunks.values())disposeChunk(chunk);streamedChunks.clear();driveSpeed=0;driveYaw=0;sideSlip=0;bodyLean=0;travelDistance=0;escaped=false;for(const k in keys)keys[k]=false;floatBody.setTranslation({x:0,y:1.8,z:22},true);floatBody.setLinvel({x:0,y:0,z:0},true);floatBody.setAngvel({x:0,y:0,z:0},true);floatBody.setRotation({x:0,y:0,z:0,w:1},true);float.rotation.set(0,0,0);floatUpper.rotation.set(0,0,0);chaseDistance=34;elapsed=0;gameOver=false;demon.position.set(0,0,56);document.querySelector('#overlay').style.display='none';document.querySelector('#overlay h1').textContent='祭走';document.querySelector('#start').textContent='出走する';document.querySelector('#status').textContent='アクセルを踏んで閻魔を振り切れ！';started=true}
 document.querySelector('#reset').onclick=reset;document.querySelector('#start').onclick=reset;
 demon.position.set(0,0,56);
 const clock=new THREE.Clock();
@@ -208,6 +209,49 @@ const tmp=new THREE.Vector3();
 // Baked-looking individual stone paving, batched for mobile performance.
 const pavingGeo=new THREE.BoxGeometry(.82,.035,.42),pavingMat=mat(0x777a76,.96);const paving=new THREE.InstancedMesh(pavingGeo,pavingMat,650);const pavingDummy=new THREE.Object3D();let pavingN=0;
 for(let z=-72;z<75;z+=.72)for(let x=-4.1;x<=4.1;x+=.94){if(Math.random()<.14)continue;pavingDummy.position.set(x,.055,z);pavingDummy.rotation.y=(Math.random()-.5)*.035;pavingDummy.scale.set(.86+Math.random()*.16,1,.9+Math.random()*.18);pavingDummy.updateMatrix();if(pavingN<650)paving.setMatrixAt(pavingN++,pavingDummy.matrix)}paving.count=pavingN;paving.receiveShadow=true;scene.add(paving);
+
+function makeRouteChunk(index){
+ const centerZ=-80-index*CHUNK_LENGTH,group=new THREE.Group(),bodies=[],obstacles=[];scene.add(group);
+ const terrain=new THREE.Mesh(new THREE.PlaneGeometry(80,CHUNK_LENGTH),stone);terrain.rotation.x=-Math.PI/2;terrain.position.set(0,-.36,centerZ);terrain.receiveShadow=true;group.add(terrain);
+ const roadMesh=new THREE.Mesh(new THREE.PlaneGeometry(13,CHUNK_LENGTH),roadMat);roadMesh.rotation.x=-Math.PI/2;roadMesh.position.set(0,.012,centerZ);roadMesh.receiveShadow=true;group.add(roadMesh);
+ const floor=world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(0,-.225,centerZ));world.createCollider(RAPIER.ColliderDesc.cuboid(40,.25,CHUNK_LENGTH/2).setFriction(1.1),floor);bodies.push(floor);
+ for(const side of [-1,1]){
+  const x=side*7.35;
+  for(let j=0;j<=8;j++){const post=new THREE.Mesh(new THREE.BoxGeometry(.22,1.45,.22),darkWood);post.position.set(x,.72,centerZ-24+j*6);post.castShadow=true;group.add(post);}
+  for(const y of [.55,1.15]){const rail=new THREE.Mesh(new THREE.BoxGeometry(.18,.18,CHUNK_LENGTH),wood);rail.position.set(x,y,centerZ);rail.castShadow=true;group.add(rail);}
+  for(let j=0;j<8;j++){const reflector=new THREE.Mesh(new THREE.BoxGeometry(.12,.32,.08),gold);reflector.position.set(x-side*.13,.9,centerZ-20+j*5.5);group.add(reflector);}
+ }
+ // Repeating direction boards and arrows mark the route ahead.
+ for(let j=0;j<3;j++){const z=centerZ-18+j*15;const board=new THREE.Mesh(new THREE.BoxGeometry(2.3,.72,.14),red);board.position.set(0,2.35,z);group.add(board);const arrow=new THREE.Mesh(new THREE.ConeGeometry(.32,.72,3),gold);arrow.rotation.z=-Math.PI/2;arrow.position.set(.08,2.35,z-.1);group.add(arrow);}
+ // A staggered crate forces a small but fair lane change.
+ if(index%2===0){const ox=index%4===0?-3.6:3.6,oz=centerZ-13;const crate=new THREE.Mesh(new THREE.BoxGeometry(1.05,.9,1.05),wood);crate.position.set(ox,.45,oz);crate.castShadow=true;group.add(crate);const band=new THREE.Mesh(new THREE.BoxGeometry(1.08,.12,1.08),gold);band.position.set(ox,.76,oz);group.add(band);obstacles.push({x:ox,z:oz,hx:.85,hz:.85});}
+ return {index,centerZ,group,bodies,obstacles};
+}
+function disposeChunk(chunk){
+ scene.remove(chunk.group);chunk.group.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material&&![roadMat,stone,wood,darkWood,gold,red].includes(o.material))o.material.dispose?.();});
+ for(const body of chunk.bodies){try{world.removeRigidBody(body)}catch(e){}}
+}
+function updateStreaming(playerZ){
+ const current=Math.max(0,Math.floor((-playerZ-80)/CHUNK_LENGTH)),wanted=new Set();
+ for(let i=Math.max(0,current-CHUNK_BEHIND);i<=current+CHUNK_AHEAD;i++){wanted.add(i);if(!streamedChunks.has(i))streamedChunks.set(i,makeRouteChunk(i));}
+ for(const [i,chunk] of streamedChunks){if(!wanted.has(i)){disposeChunk(chunk);streamedChunks.delete(i);}}
+}
+function triggerGameOver(reason){
+ if(gameOver)return;gameOver=true;driveSpeed=0;document.querySelector('#warning').style.opacity=0;
+ document.querySelector('#overlay').style.display='flex';document.querySelector('#overlay h1').textContent='ゲームオーバー';
+ document.querySelector('#overlay p').innerHTML=reason+'<br>コースを確認して、もう一度挑戦しよう。';
+ document.querySelector('#start').textContent='再挑戦する';
+}
+function checkCollisions(p){
+ const ex=1.55*Math.abs(Math.cos(driveYaw))+2.4*Math.abs(Math.sin(driveYaw));
+ const ez=1.55*Math.abs(Math.sin(driveYaw))+2.4*Math.abs(Math.cos(driveYaw));
+ for(const b of blocks){const [x,z,w,d]=b;if(Math.abs(p.x-x)<w/2+ex*.78&&Math.abs(p.z-z)<d/2+ez*.78){triggerGameOver('建物に衝突した！');return true;}}
+ if(Math.abs(p.x)+ex>7.18){triggerGameOver('フェンス・柵に衝突した！コース内を走ろう。');return true;}
+ for(const chunk of streamedChunks.values())for(const o of chunk.obstacles){if(Math.abs(p.x-o.x)<o.hx+ex*.45&&Math.abs(p.z-o.z)<o.hz+ez*.45){triggerGameOver('コース上の障害物に衝突した！');return true;}}
+ for(const h of hazardMeshes){if(h.kind==='obstacle'&&Math.hypot(p.x-h.group.position.x,p.z-h.group.position.z)<1.65){triggerGameOver('路上の障害物に衝突した！');return true;}}
+ return false;
+}
+
 function frame(){
  requestAnimationFrame(frame);const dt=Math.min(clock.getDelta(),.033);
  if(started&&!gameOver){
@@ -230,6 +274,7 @@ function frame(){
   floatBody.setRotation({x:0,y:Math.sin(driveYaw/2),z:0,w:Math.cos(driveYaw/2)},true);
   world.timestep=dt;world.step();
   const np=floatBody.translation(),nr=floatBody.rotation();
+  updateStreaming(np.z);checkCollisions(np);
   float.position.set(np.x,np.y-.45,np.z);float.quaternion.set(nr.x,nr.y,nr.z,nr.w);
   const targetLean=-steer*Math.min(.30,.035+driveSpeed*.014);
   bodyLean+=(targetLean-bodyLean)*Math.min(1,dt*4.5);
@@ -271,7 +316,7 @@ function frame(){
   if(!escaped&&chaseDistance>=19)document.querySelector('#status').textContent='閻魔から逃走中';
   document.querySelector('#stats').innerHTML=`速度 ${Math.round(speed*3.6)} km/h<br>閻魔との距離 ${Math.round(chaseDistance)} m<br>走行距離 ${Math.floor(travelDistance)} m`;
   document.querySelector('#speedFill').style.width=`${Math.min(100,speed/MAX_SPEED*100)}%`;
-  if(chaseDistance<=2){gameOver=true;document.querySelector('#overlay').style.display='flex';document.querySelector('#overlay h1').textContent='捕まった';document.querySelector('#overlay p').innerHTML='閻魔に追いつかれてしまった。<br>もう一度、古都を駆け抜けよう。';document.querySelector('#start').textContent='再挑戦する'}
+  if(chaseDistance<=2)triggerGameOver('閻魔に追いつかれてしまった！');
   if(Math.abs(np.x)>78||Math.abs(np.z)>78){floatBody.setLinvel({x:v.x*.7,y:v.y,z:v.z*.7},true)}
   shake=danger?Math.sin(elapsed*23)*.04:0;
  }
@@ -284,6 +329,7 @@ function frame(){
  camera.position.lerp(desired,.09);const look=new THREE.Vector3(p.x+heading.x*(camMode===2?18:2),p.y+(camMode===2?4.5:2),p.z+heading.z*(camMode===2?18:2));camera.lookAt(look);camera.position.y+=shake;
  renderer.render(scene,camera);
 }
+updateStreaming(floatBody.translation().z);
 frame();
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
 </script>
