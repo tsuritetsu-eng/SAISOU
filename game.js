@@ -131,7 +131,7 @@ const floatBody=world.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setTranslat
 world.createCollider(RAPIER.ColliderDesc.cuboid(1.45,1.25,2.25).setMass(7).setFriction(.8),floatBody);
 floatBody.setEnabledRotations(false,true,false,true);floatBody.setGravityScale(0,true);
 let driveSpeed=0,driveYaw=0,sideSlip=0,bodyLean=0;
-const MAX_SPEED=18.5,ENMA_SPEED=20.5;
+const MAX_SPEED=18.5,ENMA_SPEED=22.5;
 let boostCharge=0,boostTime=0,stumbleTime=0;
 const BOOST_COST=35,BOOST_DURATION=2.8,BOOST_SPEED=27.5;
 // simple Enma pursuer, stylized rather than graphic
@@ -142,7 +142,7 @@ const head=new THREE.Mesh(new THREE.SphereGeometry(.85,20,16),mat(0x762c25));hea
 for(const x of [-.38,.38]){const eye=new THREE.Mesh(new THREE.SphereGeometry(.13,12,8),eyeMat);eye.position.set(x,4.2,.73);demon.add(eye);const horn=new THREE.Mesh(new THREE.ConeGeometry(.23,1,12),hornMat);horn.position.set(x*1.6,5.1,0);horn.rotation.z=x<0?.25:-.25;demon.add(horn)}
 box(demon,0,3.1,.95,1.2,.24,.15,mat(0xb18c3e));
 const worldMap={};
-let chaseDistance=34,camMode=0,started=false,gameOver=false,elapsed=0,shake=0,travelDistance=0,escaped=false;
+let chaseDistance=27,camMode=0,started=false,gameOver=false,elapsed=0,shake=0,travelDistance=0,escaped=false;
 const streamedChunks=new Map();const CHUNK_LENGTH=48,CHUNK_BEHIND=2,CHUNK_AHEAD=5;
 const keys={};
 function activateBoost(){if(!started||gameOver||boostCharge<BOOST_COST||boostTime>0)return;boostCharge-=BOOST_COST;boostTime=BOOST_DURATION;document.querySelector('#status').textContent='ブースト発動！一気に加速！';}
@@ -167,10 +167,11 @@ function releaseStick(){
 stickBase.addEventListener('pointerdown',e=>{e.preventDefault();joystick.active=true;joystick.pointerId=e.pointerId;stickBase.setPointerCapture(e.pointerId);updateStick(e)});
 stickBase.addEventListener('pointermove',e=>{if(joystick.active&&e.pointerId===joystick.pointerId)updateStick(e)});
 ['pointerup','pointercancel','lostpointercapture'].forEach(type=>stickBase.addEventListener(type,releaseStick));
-function toggleCamera(){camMode=(camMode+1)%3;document.querySelector('#camera').textContent=['視点：追尾','視点：近距離','視点：一人称'][camMode]}
+function toggleCamera(){camMode=(camMode+1)%4;document.querySelector('#camera').textContent=['視点：追尾','視点：近距離','視点：一人称','視点：後方確認'][camMode]}
+
 document.querySelector('#camera').onclick=toggleCamera;
 document.querySelector('#boostButton').onclick=activateBoost;
-function reset(){for(const chunk of streamedChunks.values())disposeChunk(chunk);streamedChunks.clear();driveSpeed=0;driveYaw=0;sideSlip=0;bodyLean=0;boostCharge=0;boostTime=0;stumbleTime=0;travelDistance=0;escaped=false;for(const k in keys)keys[k]=false;releaseStick();floatBody.setTranslation({x:0,y:1.8,z:22},true);floatBody.setLinvel({x:0,y:0,z:0},true);floatBody.setAngvel({x:0,y:0,z:0},true);floatBody.setRotation({x:0,y:0,z:0,w:1},true);float.rotation.set(0,0,0);floatUpper.rotation.set(0,0,0);chaseDistance=34;elapsed=0;gameOver=false;demon.position.set(0,0,56);document.querySelector('#overlay').style.display='none';document.querySelector('#overlay h1').textContent='祭走';document.querySelector('#start').textContent='出走する';document.querySelector('#status').textContent='順路の矢印に従って進もう';started=true}
+function reset(){for(const chunk of streamedChunks.values())disposeChunk(chunk);streamedChunks.clear();driveSpeed=0;driveYaw=0;sideSlip=0;bodyLean=0;boostCharge=0;boostTime=0;stumbleTime=0;travelDistance=0;escaped=false;for(const k in keys)keys[k]=false;releaseStick();floatBody.setTranslation({x:0,y:1.8,z:22},true);floatBody.setLinvel({x:0,y:0,z:0},true);floatBody.setAngvel({x:0,y:0,z:0},true);floatBody.setRotation({x:0,y:0,z:0,w:1},true);float.rotation.set(0,0,0);floatUpper.rotation.set(0,0,0);chaseDistance=27;elapsed=0;gameOver=false;demon.position.set(0,0,56);document.querySelector('#overlay').style.display='none';document.querySelector('#overlay h1').textContent='祭走';document.querySelector('#start').textContent='出走する';document.querySelector('#status').textContent='順路の矢印に従って進もう';started=true}
 document.querySelector('#reset').onclick=reset;document.querySelector('#start').onclick=reset;
 demon.position.set(0,0,56);
 const clock=new THREE.Clock();
@@ -345,10 +346,13 @@ function frame(){
  const p=floatBody.translation();
  const heading=new THREE.Vector3(-Math.sin(driveYaw),0,-Math.cos(driveYaw));
  let desired;
- if(camMode===0)desired=new THREE.Vector3(p.x-heading.x*10, p.y+6.5, p.z-heading.z*10);
+ if(camMode===0)desired=new THREE.Vector3(p.x-heading.x*10,p.y+6.5,p.z-heading.z*10);
  else if(camMode===1)desired=new THREE.Vector3(p.x-heading.x*5.2,p.y+3.3,p.z-heading.z*5.2);
- else desired=new THREE.Vector3(p.x,p.y+5.05,p.z);
- camera.position.lerp(desired,.09);const look=new THREE.Vector3(p.x+heading.x*(camMode===2?18:2),p.y+(camMode===2?4.5:2),p.z+heading.z*(camMode===2?18:2));camera.lookAt(look);camera.position.y+=shake;
+ else if(camMode===2)desired=new THREE.Vector3(p.x,p.y+5.05,p.z);
+ else desired=new THREE.Vector3(p.x-heading.x*7,p.y+6.0,p.z-heading.z*7);
+ camera.position.lerp(desired,.09);
+ const look=camMode===3?new THREE.Vector3(p.x-heading.x*36,p.y+2.7,p.z-heading.z*36):new THREE.Vector3(p.x+heading.x*(camMode===2?18:2),p.y+(camMode===2?4.5:2),p.z+heading.z*(camMode===2?18:2));
+ camera.lookAt(look);camera.position.y+=shake;
  renderer.render(scene,camera);
 }
 updateStreaming(floatBody.translation().z);
