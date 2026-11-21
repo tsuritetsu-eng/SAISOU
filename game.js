@@ -131,7 +131,7 @@ const floatBody=world.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setTranslat
 world.createCollider(RAPIER.ColliderDesc.cuboid(1.45,1.25,2.25).setMass(7).setFriction(.8),floatBody);
 floatBody.setEnabledRotations(false,true,false,true);floatBody.setGravityScale(0,true);
 let driveSpeed=0,driveYaw=0,sideSlip=0,bodyLean=0;
-const MAX_SPEED=18.5,ENMA_SPEED=15;
+const MAX_SPEED=18.5,ENMA_SPEED=12;
 let boostCharge=0,boostTime=0,stumbleTime=0;
 const BOOST_COST=35,BOOST_DURATION=3.4,BOOST_SPEED=34.5;
 // simple Enma pursuer, stylized rather than graphic
