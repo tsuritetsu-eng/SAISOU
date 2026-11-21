@@ -131,7 +131,7 @@ const floatBody=world.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setTranslat
 world.createCollider(RAPIER.ColliderDesc.cuboid(1.45,1.25,2.25).setMass(7).setFriction(.8),floatBody);
 floatBody.setEnabledRotations(false,true,false,true);floatBody.setGravityScale(0,true);
 let driveSpeed=0,driveYaw=0,sideSlip=0,bodyLean=0;
-const MAX_SPEED=18.5,ENMA_SPEED=12;
+const MAX_SPEED=18.5,ENMA_SPEED=12,ENMA_START_DISTANCE=20;
 let boostCharge=0,boostTime=0,stumbleTime=0;
 const BOOST_COST=35,BOOST_DURATION=3.4,BOOST_SPEED=34.5;
 // simple Enma pursuer, stylized rather than graphic
@@ -142,7 +142,7 @@ const head=new THREE.Mesh(new THREE.SphereGeometry(.85,20,16),mat(0x762c25));hea
 for(const x of [-.38,.38]){const eye=new THREE.Mesh(new THREE.SphereGeometry(.13,12,8),eyeMat);eye.position.set(x,4.2,.73);demon.add(eye);const horn=new THREE.Mesh(new THREE.ConeGeometry(.23,1,12),hornMat);horn.position.set(x*1.6,5.1,0);horn.rotation.z=x<0?.25:-.25;demon.add(horn)}
 box(demon,0,3.1,.95,1.2,.24,.15,mat(0xb18c3e));
 const worldMap={};
-let chaseDistance=32,camMode=0,started=false,gameOver=false,elapsed=0,shake=0,travelDistance=0,escaped=false;
+let chaseDistance=32,camMode=0,started=false,gameOver=false,elapsed=0,shake=0,travelDistance=0,escaped=false,enmaStarted=false;
 const streamedChunks=new Map();const CHUNK_LENGTH=48,CHUNK_BEHIND=2,CHUNK_AHEAD=5;
 const keys={};
 function activateBoost(){if(!started||gameOver||boostCharge<BOOST_COST||boostTime>0)return;boostCharge-=BOOST_COST;boostTime=BOOST_DURATION;document.querySelector('#status').textContent='ブースト発動！一気に加速！';}
@@ -171,7 +171,7 @@ function toggleCamera(){camMode=(camMode+1)%4;document.querySelector('#camera').
 
 document.querySelector('#camera').onclick=toggleCamera;
 document.querySelector('#boostButton').onclick=activateBoost;
-function reset(){for(const chunk of streamedChunks.values())disposeChunk(chunk);streamedChunks.clear();driveSpeed=0;driveYaw=0;sideSlip=0;bodyLean=0;boostCharge=0;boostTime=0;stumbleTime=0;travelDistance=0;escaped=false;for(const k in keys)keys[k]=false;releaseStick();floatBody.setTranslation({x:0,y:1.8,z:22},true);floatBody.setLinvel({x:0,y:0,z:0},true);floatBody.setAngvel({x:0,y:0,z:0},true);floatBody.setRotation({x:0,y:0,z:0,w:1},true);float.rotation.set(0,0,0);floatUpper.rotation.set(0,0,0);chaseDistance=32;elapsed=0;gameOver=false;demon.position.set(0,0,56);document.querySelector('#overlay').style.display='none';document.querySelector('#overlay h1').textContent='祭走';document.querySelector('#start').textContent='出走する';document.querySelector('#status').textContent='順路の矢印に従って進もう';started=true}
+function reset(){for(const chunk of streamedChunks.values())disposeChunk(chunk);streamedChunks.clear();driveSpeed=0;driveYaw=0;sideSlip=0;bodyLean=0;boostCharge=0;boostTime=0;stumbleTime=0;travelDistance=0;escaped=false;for(const k in keys)keys[k]=false;releaseStick();floatBody.setTranslation({x:0,y:1.8,z:22},true);floatBody.setLinvel({x:0,y:0,z:0},true);floatBody.setAngvel({x:0,y:0,z:0},true);floatBody.setRotation({x:0,y:0,z:0,w:1},true);float.rotation.set(0,0,0);floatUpper.rotation.set(0,0,0);chaseDistance=32;enmaStarted=false;elapsed=0;gameOver=false;demon.position.set(0,0,56);document.querySelector('#overlay').style.display='none';document.querySelector('#overlay h1').textContent='祭走';document.querySelector('#start').textContent='出走する';document.querySelector('#status').textContent='順路の矢印に従って進もう';started=true}
 document.querySelector('#reset').onclick=reset;document.querySelector('#start').onclick=reset;
 demon.position.set(0,0,56);
 const clock=new THREE.Clock();
@@ -323,17 +323,23 @@ function frame(){
    }
   }
   travelDistance+=speed*dt;
-  const enmaPace=stumbleTime>0?5.5:ENMA_SPEED;
-  chaseDistance=THREE.MathUtils.clamp(chaseDistance+(speed-enmaPace)*dt,1.8,90);
-  const targetZ=np.z+chaseDistance;
-  const enmaWobble=stumbleTime>0?Math.sin(elapsed*13)*1.35:0;
-  demon.position.x+=(np.x+enmaWobble-demon.position.x)*Math.min(1,dt*1.8);
-  demon.position.z+=(targetZ-demon.position.z)*Math.min(1,dt*3.2);
-  demon.rotation.y=Math.PI;demon.rotation.z=stumbleTime>0?Math.sin(elapsed*17)*.24:0;
+  if(!enmaStarted&&travelDistance>=ENMA_START_DISTANCE){
+   enmaStarted=true;
+   document.querySelector('#status').textContent='閻魔が目を覚ました！追跡開始！';
+  }
+  if(enmaStarted){
+   const enmaPace=stumbleTime>0?5.5:ENMA_SPEED;
+   chaseDistance=THREE.MathUtils.clamp(chaseDistance+(speed-enmaPace)*dt,1.8,90);
+   const targetZ=np.z+chaseDistance;
+   const enmaWobble=stumbleTime>0?Math.sin(elapsed*13)*1.35:0;
+   demon.position.x+=(np.x+enmaWobble-demon.position.x)*Math.min(1,dt*1.8);
+   demon.position.z+=(targetZ-demon.position.z)*Math.min(1,dt*3.2);
+   demon.rotation.y=Math.PI;demon.rotation.z=stumbleTime>0?Math.sin(elapsed*17)*.24:0;
+  }
   if(chaseDistance>=90&&!escaped){escaped=true;triggerWin();}
   const danger=!escaped&&chaseDistance<15;
   document.querySelector('#warning').style.opacity=(!escaped&&chaseDistance<19)?1:0;
-  if(!escaped&&chaseDistance>=19&&stumbleTime<=0&&boostTime<=0)document.querySelector('#status').textContent='閻魔から逃走中';
+  if(!enmaStarted&&!escaped)document.querySelector('#status').textContent=`閻魔はまだ眠っている…（追跡開始まで ${Math.max(0,Math.ceil(ENMA_START_DISTANCE-travelDistance))} m）`;\n  else if(!escaped&&chaseDistance>=19&&stumbleTime<=0&&boostTime<=0)document.querySelector('#status').textContent='閻魔から逃走中';
   document.querySelector('#stats').innerHTML=`速度 ${Math.round(speed*3.6)} km/h<br>閻魔との距離 ${Math.round(chaseDistance)} m<br>走行距離 ${Math.floor(travelDistance)} m<br>区画 ${Math.max(1,Math.floor(travelDistance/48)+1)}`;
   document.querySelector('#speedFill').style.width=`${Math.min(100,speed/BOOST_SPEED*100)}%`;
   document.querySelector('#boostFill').style.width=`${boostCharge}%`;
@@ -341,7 +347,7 @@ function frame(){
   document.querySelector('#boostButton').disabled=boostCharge<BOOST_COST||boostTime>0;
   document.querySelector('#boostButton').classList.toggle('boost-active',boostTime>0);
   if(stumbleTime>0)document.querySelector('#status').textContent='閻魔がよろめいている！';
-  if(!escaped&&chaseDistance<=2)triggerGameOver('閻魔に追いつかれてしまった！');
+  if(enmaStarted&&!escaped&&chaseDistance<=2)triggerGameOver('閻魔に追いつかれてしまった！');
   if(Math.abs(np.x)>78||Math.abs(np.z)>78){floatBody.setLinvel({x:v.x*.7,y:v.y,z:v.z*.7},true)}
   shake=danger?Math.sin(elapsed*23)*.04:0;
  }
