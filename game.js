@@ -309,7 +309,6 @@ function frame(){
   world.timestep=dt;world.step();
   const np=floatBody.translation(),nr=floatBody.rotation();
   if(jumpHeight>0||jumpVelocity>0){jumpVelocity-=JUMP_GRAVITY*dt;jumpHeight=Math.max(0,jumpHeight+jumpVelocity*dt);if(jumpHeight===0)jumpVelocity=0;}
-  for(const chunk of streamedChunks.values())for(const pad of chunk.jumpPads){if(!pad.used&&Math.abs(np.z-pad.z)<1.35&&Math.abs(np.x-pad.x)<2.0&&driveSpeed>5){}}
   updateStreaming(np.z);checkCollisions(np);
   float.position.set(np.x,np.y-.45+routeHeight(np.z)+jumpHeight,np.z);float.quaternion.set(nr.x,nr.y,nr.z,nr.w);
   const targetLean=-steer*Math.min(.30,.035+driveSpeed*.014);
