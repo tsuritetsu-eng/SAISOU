@@ -339,7 +339,8 @@ function frame(){
   if(chaseDistance>=90&&!escaped){escaped=true;triggerWin();}
   const danger=!escaped&&chaseDistance<15;
   document.querySelector('#warning').style.opacity=(!escaped&&chaseDistance<19)?1:0;
-  if(!enmaStarted&&!escaped)document.querySelector('#status').textContent=`閻魔はまだ眠っている…（追跡開始まで ${Math.max(0,Math.ceil(ENMA_START_DISTANCE-travelDistance))} m）`;\n  else if(!escaped&&chaseDistance>=19&&stumbleTime<=0&&boostTime<=0)document.querySelector('#status').textContent='閻魔から逃走中';
+  if(!enmaStarted&&!escaped)document.querySelector('#status').textContent=`閻魔はまだ眠っている…（追跡開始まで ${Math.max(0,Math.ceil(ENMA_START_DISTANCE-travelDistance))} m）`;
+  else if(!escaped&&chaseDistance>=19&&stumbleTime<=0&&boostTime<=0)document.querySelector('#status').textContent='閻魔から逃走中';
   document.querySelector('#stats').innerHTML=`速度 ${Math.round(speed*3.6)} km/h<br>閻魔との距離 ${Math.round(chaseDistance)} m<br>走行距離 ${Math.floor(travelDistance)} m<br>区画 ${Math.max(1,Math.floor(travelDistance/48)+1)}`;
   document.querySelector('#speedFill').style.width=`${Math.min(100,speed/BOOST_SPEED*100)}%`;
   document.querySelector('#boostFill').style.width=`${boostCharge}%`;
