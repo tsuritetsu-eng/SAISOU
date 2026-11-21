@@ -207,15 +207,15 @@ function makeRouteChunk(index){
  const curveX=t=>routeCurveOffset(index,t);
  const items=[],jumpPads=[],pedestrians=[];
  const intersectionZ=centerZ-12;
- const terrain=new THREE.Mesh(new THREE.PlaneGeometry(80,CHUNK_LENGTH),stone);terrain.rotation.x=-Math.PI/2;terrain.position.set(0,-.36,centerZ);terrain.receiveShadow=true;group.add(terrain);
+ const terrainGeo=new THREE.PlaneGeometry(80,CHUNK_LENGTH,40,24);terrainGeo.rotateX(-Math.PI/2);const terrainPos=terrainGeo.attributes.position;for(let v=0;v<terrainPos.count;v++){const wx=terrainPos.getX(v),wz=centerZ+terrainPos.getZ(v);terrainPos.setY(v,-.36+routeHeight(wz,wx-routeCenterX(wz)));}terrainGeo.computeVertexNormals();const terrain=new THREE.Mesh(terrainGeo,stone);terrain.position.set(0,0,centerZ);terrain.receiveShadow=true;group.add(terrain);
  const roadGeo=new THREE.BufferGeometry(),roadVerts=[],roadUvs=[],roadIndices=[],roadSegments=40,roadAcross=4;
  for(let j=0;j<=roadSegments;j++){const t=j/roadSegments,z=centerZ+CHUNK_LENGTH/2-t*CHUNK_LENGTH,cx=curveX(t);for(let k=0;k<=roadAcross;k++){const u=k/roadAcross;const roadX=cx+(u-.5)*13;roadVerts.push(roadX,.012+routeHeight(z,roadX-cx),z);roadUvs.push(u,t);if(j<roadSegments&&k<roadAcross){const a=j*(roadAcross+1)+k,b=a+roadAcross+1;roadIndices.push(a,a+1,b,b,a+1,b+1)}}}
  roadGeo.setAttribute('position',new THREE.Float32BufferAttribute(roadVerts,3));roadGeo.setAttribute('uv',new THREE.Float32BufferAttribute(roadUvs,2));roadGeo.setIndex(roadIndices);roadGeo.computeVertexNormals();const roadMesh=new THREE.Mesh(roadGeo,roadMat);roadMesh.receiveShadow=true;group.add(roadMesh);
  // Four-way junctions connect the main avenue to a cross street.
  const intersectionX=curveX((centerZ+24-intersectionZ)/CHUNK_LENGTH);
  if(index%3===1||index%3===2){
-  const crossRoad=new THREE.Mesh(new THREE.BoxGeometry(54,.055,8.5),roadMat);crossRoad.position.set(intersectionX,.018+routeHeight(intersectionZ),intersectionZ);group.add(crossRoad);
-  for(let stripe=-2;stripe<=2;stripe++){const mark=new THREE.Mesh(new THREE.BoxGeometry(.42,.025,7.2),mat(0xd8d0b8));mark.position.set(intersectionX+stripe*.78,.06,intersectionZ);group.add(mark);}
+  const crossGeo=new THREE.PlaneGeometry(54,8.5,36,8);crossGeo.rotateX(-Math.PI/2);const cp=crossGeo.attributes.position;for(let v=0;v<cp.count;v++){const wx=intersectionX+cp.getX(v),wz=intersectionZ+cp.getZ(v);cp.setY(v,.018+routeHeight(wz,wx-routeCenterX(wz)));}crossGeo.computeVertexNormals();const crossRoad=new THREE.Mesh(crossGeo,roadMat);crossRoad.position.set(0,0,0);group.add(crossRoad);
+  for(let stripe=-2;stripe<=2;stripe++){const mark=new THREE.Mesh(new THREE.BoxGeometry(.42,.025,7.2),mat(0xd8d0b8));mark.position.set(intersectionX+stripe*.78,.06+routeHeight(intersectionZ,stripe*.78),intersectionZ);group.add(mark);}
  }
  const floor=world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(0,-.225,centerZ));world.createCollider(RAPIER.ColliderDesc.cuboid(40,.25,CHUNK_LENGTH/2).setFriction(1.1),floor);bodies.push(floor);
  for(const side of [-1,1]){
@@ -274,7 +274,8 @@ function makeRouteChunk(index){
  for(let j=0;j<2;j++){const t=.28+j*.43,z=centerZ+24-t*CHUNK_LENGTH,x=curveX(t)+(j%2===0?-5.35:5.35);const pole=new THREE.Mesh(new THREE.CylinderGeometry(.22,.29,7.2,10),darkWood);pole.position.set(x,3.6,z);pole.castShadow=true;group.add(pole);const arm=new THREE.Mesh(new THREE.BoxGeometry(1.9,.18,.2),wood);arm.position.set(x,6.65,z);group.add(arm);for(const dx of [-.72,.72]){const ins=new THREE.Mesh(new THREE.CylinderGeometry(.08,.08,.42,8),gold);ins.position.set(x+dx,6.92,z);group.add(ins)}obstacles.push({x,z,hx:.62,hz:.62});}
  // Pickups: red talismans trip Enma; blue orbs charge boost.
  const pickupSpecs=index===0
-  ?[{x:0,z:centerZ+30,kind:'boost'},{x:1.8,z:centerZ+8,kind:'slip'}]
+  // The opening red talisman is guaranteed and placed before the first boost.
+  ?[{x:-1.7,z:centerZ+30,kind:'slip'},{x:1.7,z:centerZ+8,kind:'boost'}]
   :[{x:0,z:centerZ-2,kind:'boost'},...(index%2===0?[{x:index%4===0?-1.8:1.8,z:centerZ+14,kind:'slip'}]:[]),...(index%3===1?[{x:index%2===0?1.8:-1.8,z:centerZ-18,kind:'debuff'}]:[])];
  for(const spec of pickupSpecs){
   const g=new THREE.Group();g.position.set(curveX(THREE.MathUtils.clamp((centerZ+24-spec.z)/CHUNK_LENGTH,0,1))+spec.x,1.15,spec.z);group.add(g);
