@@ -6,10 +6,10 @@ await RAPIER.init();
 const mount=document.querySelector('#game');
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x9bb2bb);scene.fog=new THREE.Fog(0x9bb2bb,38,150);
 const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.1,250);
-const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,1.65));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.12;mount.appendChild(renderer.domElement);
+const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,1.65));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=false;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.12;mount.appendChild(renderer.domElement);
 scene.add(new THREE.HemisphereLight(0xdcecff,0x594637,1.35));
 scene.add(new THREE.AmbientLight(0x8b9aa3,.28));
-const sun=new THREE.DirectionalLight(0xffd6a0,3.1);sun.position.set(-25,45,20);sun.castShadow=true;sun.shadow.mapSize.set(3072,3072);sun.shadow.camera.left=-90;sun.shadow.camera.right=90;sun.shadow.camera.top=90;sun.shadow.camera.bottom=-90;sun.shadow.bias=-.00018;sun.shadow.normalBias=.025;sun.shadow.radius=3;scene.add(sun);
+const sun=new THREE.DirectionalLight(0xffd6a0,3.1);sun.position.set(-25,45,20);sun.castShadow=false;scene.add(sun);
 const mat=(c,r=.85,m=0)=>new THREE.MeshStandardMaterial({color:c,roughness:r,metalness:m});
 function surfaceTexture(base,kind='noise'){const c=document.createElement('canvas');c.width=c.height=512;const x=c.getContext('2d');x.fillStyle=base;x.fillRect(0,0,512,512);for(let i=0;i<8500;i++){const v=Math.random()*34-17;x.fillStyle=`rgba(${v>0?255:0},${v>0?255:0},${v>0?255:0},${Math.abs(v)/500})`;x.fillRect(Math.random()*512,Math.random()*512,Math.random()*4+1,Math.random()*3+1)}if(kind==='wood'){x.strokeStyle='rgba(25,12,5,.16)';for(let i=0;i<28;i++){const y=Math.random()*512;x.beginPath();x.moveTo(0,y);x.bezierCurveTo(160,y-8,330,y+9,512,y);x.stroke()}}if(kind==='stone'){x.strokeStyle='rgba(20,25,25,.2)';for(let y=0;y<512;y+=64){x.beginPath();x.moveTo(0,y);x.lineTo(512,y);x.stroke()}for(let y=0;y<512;y+=64)for(let xx=(y/64%2)*48;xx<512;xx+=96){x.beginPath();x.moveTo(xx,y);x.lineTo(xx,y+64);x.stroke()}}const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;return t}
 const roadMat=mat(0x777b7c,.98), stone=mat(0xaaa69a,.95), wood=mat(0x765039,.82), darkWood=mat(0x38291f,.8), plaster=mat(0xe0d3b9,.95), roof=mat(0x303b40,.9), red=mat(0x8e3025,.72), gold=mat(0xc59a4d,.38,.62);
@@ -150,7 +150,11 @@ for(const x of [-.38,.38]){const eye=new THREE.Mesh(new THREE.SphereGeometry(.13
 box(demon,0,3.1,.95,1.2,.24,.15,mat(0xb18c3e));
 const worldMap={};
 let chaseDistance=32,camMode=0,started=false,gameOver=false,elapsed=0,shake=0,travelDistance=0,escaped=false,enmaStarted=false;
-const streamedChunks=new Map();const CHUNK_LENGTH=48,CHUNK_BEHIND=2,CHUNK_AHEAD=5;
+const streamedChunks=new Map();const CHUNK_LENGTH=48,CHUNK_BEHIND=1;
+let renderDistance=2; // Loaded route sections ahead, adjustable like Minecraft view distance.
+const renderDistanceSelect=document.querySelector('#renderDistance');
+renderDistanceSelect.value=String(renderDistance);
+renderDistanceSelect.addEventListener('change',()=>{renderDistance=THREE.MathUtils.clamp(Number(renderDistanceSelect.value)||2,1,4);updateStreaming(floatBody.translation().z);});
 const keys={};
 function activateBoost(){if(!started||gameOver||boostCharge<BOOST_COST||boostTime>0)return;boostCharge-=BOOST_COST;boostTime=BOOST_DURATION;document.querySelector('#status').textContent='ブースト発動！一気に加速！';}
 const joystick={x:0,y:0,active:false,pointerId:null};
@@ -184,8 +188,8 @@ demon.position.set(0,0,56);demon.visible=true;
 const clock=new THREE.Clock();
 const tmp=new THREE.Vector3();
 // Baked-looking individual stone paving, batched for mobile performance.
-const pavingGeo=new THREE.BoxGeometry(.82,.035,.42),pavingMat=mat(0x777a76,.96);const paving=new THREE.InstancedMesh(pavingGeo,pavingMat,650);const pavingDummy=new THREE.Object3D();let pavingN=0;
-for(let z=-72;z<75;z+=.72)for(let x=-4.1;x<=4.1;x+=.94){if(Math.random()<.14)continue;pavingDummy.position.set(x,.055+routeHeight(z,x),z);pavingDummy.rotation.y=(Math.random()-.5)*.035;pavingDummy.scale.set(.86+Math.random()*.16,1,.9+Math.random()*.18);pavingDummy.updateMatrix();if(pavingN<650)paving.setMatrixAt(pavingN++,pavingDummy.matrix)}paving.count=pavingN;paving.receiveShadow=true;scene.add(paving);
+const pavingGeo=new THREE.BoxGeometry(.82,.035,.42),pavingMat=mat(0x777a76,.96);const paving=new THREE.InstancedMesh(pavingGeo,pavingMat,380);const pavingDummy=new THREE.Object3D();let pavingN=0;
+for(let z=-72;z<75;z+=.72)for(let x=-4.1;x<=4.1;x+=.94){if(Math.random()<.14)continue;pavingDummy.position.set(x,.055+routeHeight(z,x),z);pavingDummy.rotation.y=(Math.random()-.5)*.035;pavingDummy.scale.set(.86+Math.random()*.16,1,.9+Math.random()*.18);pavingDummy.updateMatrix();if(pavingN<380)paving.setMatrixAt(pavingN++,pavingDummy.matrix)}paving.count=pavingN;paving.receiveShadow=true;scene.add(paving);
 
 // Road surface: broad rolling undulations plus smaller stone-road bumps.
 function routeHeight(z,x=0){
@@ -201,11 +205,18 @@ function routeCenterX(z){const index=Math.max(0,Math.floor((-z-80)/CHUNK_LENGTH)
 function makeRouteChunk(index){
  const centerZ=-80-index*CHUNK_LENGTH,group=new THREE.Group(),bodies=[],obstacles=[];scene.add(group);
  const curveX=t=>routeCurveOffset(index,t);
- const items=[],jumpPads=[];
+ const items=[],jumpPads=[],pedestrians=[];
+ const intersectionZ=centerZ-12;
  const terrain=new THREE.Mesh(new THREE.PlaneGeometry(80,CHUNK_LENGTH),stone);terrain.rotation.x=-Math.PI/2;terrain.position.set(0,-.36,centerZ);terrain.receiveShadow=true;group.add(terrain);
  const roadGeo=new THREE.BufferGeometry(),roadVerts=[],roadUvs=[],roadIndices=[],roadSegments=40,roadAcross=4;
  for(let j=0;j<=roadSegments;j++){const t=j/roadSegments,z=centerZ+CHUNK_LENGTH/2-t*CHUNK_LENGTH,cx=curveX(t);for(let k=0;k<=roadAcross;k++){const u=k/roadAcross;const roadX=cx+(u-.5)*13;roadVerts.push(roadX,.012+routeHeight(z,roadX-cx),z);roadUvs.push(u,t);if(j<roadSegments&&k<roadAcross){const a=j*(roadAcross+1)+k,b=a+roadAcross+1;roadIndices.push(a,a+1,b,b,a+1,b+1)}}}
  roadGeo.setAttribute('position',new THREE.Float32BufferAttribute(roadVerts,3));roadGeo.setAttribute('uv',new THREE.Float32BufferAttribute(roadUvs,2));roadGeo.setIndex(roadIndices);roadGeo.computeVertexNormals();const roadMesh=new THREE.Mesh(roadGeo,roadMat);roadMesh.receiveShadow=true;group.add(roadMesh);
+ // Four-way junctions connect the main avenue to a cross street.
+ const intersectionX=curveX((centerZ+24-intersectionZ)/CHUNK_LENGTH);
+ if(index%3===1||index%3===2){
+  const crossRoad=new THREE.Mesh(new THREE.BoxGeometry(54,.055,8.5),roadMat);crossRoad.position.set(intersectionX,.018+routeHeight(intersectionZ),intersectionZ);group.add(crossRoad);
+  for(let stripe=-2;stripe<=2;stripe++){const mark=new THREE.Mesh(new THREE.BoxGeometry(.42,.025,7.2),mat(0xd8d0b8));mark.position.set(intersectionX+stripe*.78,.06,intersectionZ);group.add(mark);}
+ }
  const floor=world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(0,-.225,centerZ));world.createCollider(RAPIER.ColliderDesc.cuboid(40,.25,CHUNK_LENGTH/2).setFriction(1.1),floor);bodies.push(floor);
  for(const side of [-1,1]){
   const postPositions=[];
@@ -241,6 +252,15 @@ function makeRouteChunk(index){
   const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.18,.25,2.1,7),darkWood);trunk.position.set(tx,1.05,tz);group.add(trunk);
   const crown=new THREE.Mesh(new THREE.SphereGeometry(1.25,8,7),mat(index%2?0x3c6948:0x52734c));crown.position.set(tx,2.75,tz);crown.castShadow=true;group.add(crown);
  }
+ // Extra festival-goers populate each loaded district.
+ for(let n=0;n<3;n++){
+  const side=n%2===0?-1:1,z=centerZ+15-n*13,x=curveX((centerZ+24-z)/CHUNK_LENGTH)+side*4.35;
+  const person=new THREE.Group();person.position.set(x,0,z);group.add(person);
+  const torsoMesh=new THREE.Mesh(new THREE.CapsuleGeometry(.22,.68,3,7),personMaterials[(index+n)%personMaterials.length]);torsoMesh.position.y=.98;person.add(torsoMesh);
+  const headMesh=new THREE.Mesh(new THREE.SphereGeometry(.18,8,7),mat(0xd4a17c));headMesh.position.y=1.55;person.add(headMesh);
+  const legs=[];for(const sx of [-.12,.12]){const leg=new THREE.Mesh(new THREE.BoxGeometry(.12,.55,.13),mat(0x292c31));leg.position.set(sx,.32,0);person.add(leg);legs.push(leg);}
+  pedestrians.push({group:person,baseX:x,baseZ:z,phase:index*.7+n*1.9,legs});
+ }
  // Staggered road hazards: every few sections require a deliberate lane change.
  if(index%2===0){const oz=centerZ-13,ox=curveX((centerZ+24-oz)/CHUNK_LENGTH)+(index%4===0?-3.7:3.7);const crate=new THREE.Mesh(new THREE.BoxGeometry(1.75,1.25,1.55),wood);crate.position.set(ox,.625,oz);crate.castShadow=true;group.add(crate);const band=new THREE.Mesh(new THREE.BoxGeometry(1.79,.16,1.59),gold);band.position.set(ox,.86,oz);group.add(band);obstacles.push({x:ox,z:oz,hx:1.05,hz:1.0});}
  // Side-lane barriers and stacked cargo make both road edges hazardous.
@@ -267,7 +287,7 @@ function makeRouteChunk(index){
  }
  // Route progress marker, visible on the HUD via the current district number.
  const markerZ=centerZ-CHUNK_LENGTH*.38;const marker=new THREE.Mesh(new THREE.BoxGeometry(2.8,.8,.16),red);marker.position.set(curveX((centerZ+24-markerZ)/CHUNK_LENGTH),2.6,markerZ);group.add(marker);
- return {index,centerZ,group,bodies,obstacles,items,jumpPads};
+ return {index,centerZ,intersectionZ,group,bodies,obstacles,items,jumpPads,pedestrians};
 }
 function disposeChunk(chunk){
  scene.remove(chunk.group);chunk.group.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material&&![roadMat,stone,wood,darkWood,gold,red,roof,plaster].includes(o.material))o.material.dispose?.();});
@@ -275,7 +295,7 @@ function disposeChunk(chunk){
 }
 function updateStreaming(playerZ){
  const current=Math.max(0,Math.floor((-playerZ-80)/CHUNK_LENGTH)),wanted=new Set();
- for(let i=Math.max(0,current-CHUNK_BEHIND);i<=current+CHUNK_AHEAD;i++){wanted.add(i);if(!streamedChunks.has(i))streamedChunks.set(i,makeRouteChunk(i));}
+ for(let i=Math.max(0,current-CHUNK_BEHIND);i<=current+renderDistance;i++){wanted.add(i);if(!streamedChunks.has(i))streamedChunks.set(i,makeRouteChunk(i));}
  for(const [i,chunk] of streamedChunks){if(!wanted.has(i)){disposeChunk(chunk);streamedChunks.delete(i);}}
 }
 function triggerWin(){
@@ -295,7 +315,8 @@ function checkCollisions(p){
  const ez=1.55*Math.abs(Math.sin(driveYaw))+2.4*Math.abs(Math.cos(driveYaw));
  for(const b of blocks){const [x,z,w,d]=b;if(Math.abs(p.x-x)<w/2+ex*.78&&Math.abs(p.z-z)<d/2+ez*.78){triggerGameOver('建物に衝突した！');return true;}}
  for(const o of staticGateObstacles){if(Math.abs(p.x-o.x)<o.hx+ex*.45&&Math.abs(p.z-o.z)<o.hz+ez*.45){if(o.kind==='toriiBeam'){if(6.52+routeHeight(p.z)+jumpHeight>o.bottom){triggerGameOver('鳥居の横木に衝突した！');return true;}}else{triggerGameOver('鳥居の柱に衝突した！');return true;}}}
- if(Math.abs(p.x-routeCenterX(p.z))+ex>6.45){triggerGameOver('フェンス・柵に衝突した！カーブに沿って走ろう。');return true;}
+ const inJunction=[...streamedChunks.values()].some(c=>(c.index%3===1||c.index%3===2)&&Math.abs(p.z-c.intersectionZ)<5.4);
+ if(inJunction?Math.abs(p.x-routeCenterX(p.z))>24:Math.abs(p.x-routeCenterX(p.z))+ex>6.45){triggerGameOver('フェンス・柵に衝突した！カーブに沿って走ろう。');return true;}
  for(const chunk of streamedChunks.values())for(const o of chunk.obstacles){if(Math.abs(p.x-o.x)<o.hx+ex*.45&&Math.abs(p.z-o.z)<o.hz+ez*.45){if(o.kind==='overhead'||o.kind==='toriiBeam'){const roofTop=6.52+routeHeight(p.z)+jumpHeight;if(roofTop>o.bottom){triggerGameOver(o.kind==='toriiBeam'?'鳥居の横木に衝突した！':'山車の屋根が低い横木に衝突した！');return true;}}else{triggerGameOver(o.kind==='toriiPost'?'鳥居の柱に衝突した！':'コース脇の障害物に衝突した！');return true;}}}
  for(const h of hazardMeshes){if(h.kind==='obstacle'&&Math.hypot(p.x-h.group.position.x,p.z-h.group.position.z)<1.65){triggerGameOver('路上の障害物に衝突した！');return true;}}
  return false;
@@ -363,6 +384,8 @@ function frame(){
     }
   }
 
+  // Animate pedestrians in loaded route sections.
+  for(const chunk of streamedChunks.values())for(const h of chunk.pedestrians){const sway=Math.sin(elapsed*.85+h.phase);h.group.position.x=h.baseX+sway*1.25;h.group.position.z=h.baseZ+Math.sin(elapsed*.48+h.phase)*.22;h.group.rotation.y=sway>0?Math.PI/2:-Math.PI/2;h.legs[0].rotation.x=Math.sin(elapsed*4+h.phase)*.28;h.legs[1].rotation.x=-Math.sin(elapsed*4+h.phase)*.28;}
   // Pick up course items. Red talismans make Enma stumble; blue orbs charge boost.
   for(const chunk of streamedChunks.values())for(const pad of chunk.jumpPads){if(!pad.used&&Math.abs(np.z-pad.z)<1.5&&Math.abs(np.x-pad.x)<2.0){pad.used=true;if(driveSpeed>5){jumpVelocity=5.8;jumpHeight=Math.max(jumpHeight,.08);document.querySelector('#status').textContent='ジャンプ！着地に備えよう';}}}
   for(const chunk of streamedChunks.values())for(const item of chunk.items){
