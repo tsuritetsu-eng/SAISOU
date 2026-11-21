@@ -136,8 +136,8 @@ let boostCharge=0,boostTime=0,stumbleTime=0;
 // Difficulty rises gently every 48 m section (displayed as a round).
 function currentRound(){return Math.max(1,Math.floor(travelDistance/48)+1)}
 function enmaChasePace(){return ENMA_SPEED+Math.min(2.2,(currentRound()-1)*.22)}
-function enmaStumblePace(){return Math.min(13.6,5.5+(currentRound()-1)*.9)}
-function enmaStumbleDuration(){return Math.max(1.8,4.5-(currentRound()-1)*.3)}
+function enmaStumblePace(){return Math.min(16.5,12.5+(currentRound()-1)*.45)}
+function enmaStumbleDuration(){return Math.max(1.2,2.2-(currentRound()-1)*.12)}
 const BOOST_COST=35,BOOST_DURATION=3.4,BOOST_SPEED=34.5;
 // simple Enma pursuer, stylized rather than graphic
 const demon=new THREE.Group();demon.visible=false;scene.add(demon);
@@ -185,42 +185,49 @@ const tmp=new THREE.Vector3();
 const pavingGeo=new THREE.BoxGeometry(.82,.035,.42),pavingMat=mat(0x777a76,.96);const paving=new THREE.InstancedMesh(pavingGeo,pavingMat,650);const pavingDummy=new THREE.Object3D();let pavingN=0;
 for(let z=-72;z<75;z+=.72)for(let x=-4.1;x<=4.1;x+=.94){if(Math.random()<.14)continue;pavingDummy.position.set(x,.055,z);pavingDummy.rotation.y=(Math.random()-.5)*.035;pavingDummy.scale.set(.86+Math.random()*.16,1,.9+Math.random()*.18);pavingDummy.updateMatrix();if(pavingN<650)paving.setMatrixAt(pavingN++,pavingDummy.matrix)}paving.count=pavingN;paving.receiveShadow=true;scene.add(paving);
 
+function routeCurveOffset(index,t){const amplitude=2.1+(index%3)*.55;return Math.sin(t*Math.PI*2+(index%2)*Math.PI)*amplitude;}
+function routeCenterX(z){const index=Math.max(0,Math.floor((-z-80)/CHUNK_LENGTH));const centerZ=-80-index*CHUNK_LENGTH;const t=THREE.MathUtils.clamp((centerZ+CHUNK_LENGTH/2-z)/CHUNK_LENGTH,0,1);return routeCurveOffset(index,t)}
 function makeRouteChunk(index){
  const centerZ=-80-index*CHUNK_LENGTH,group=new THREE.Group(),bodies=[],obstacles=[];scene.add(group);
+ const curveX=t=>routeCurveOffset(index,t);
  const items=[];
  const terrain=new THREE.Mesh(new THREE.PlaneGeometry(80,CHUNK_LENGTH),stone);terrain.rotation.x=-Math.PI/2;terrain.position.set(0,-.36,centerZ);terrain.receiveShadow=true;group.add(terrain);
- const roadMesh=new THREE.Mesh(new THREE.PlaneGeometry(13,CHUNK_LENGTH),roadMat);roadMesh.rotation.x=-Math.PI/2;roadMesh.position.set(0,.012,centerZ);roadMesh.receiveShadow=true;group.add(roadMesh);
+ const roadGeo=new THREE.BufferGeometry(),roadVerts=[],roadUvs=[],roadIndices=[],roadSegments=40,roadAcross=4;
+ for(let j=0;j<=roadSegments;j++){const t=j/roadSegments,z=centerZ+CHUNK_LENGTH/2-t*CHUNK_LENGTH,cx=curveX(t);for(let k=0;k<=roadAcross;k++){const u=k/roadAcross;roadVerts.push(cx+(u-.5)*13,.012,z);roadUvs.push(u,t);if(j<roadSegments&&k<roadAcross){const a=j*(roadAcross+1)+k,b=a+roadAcross+1;roadIndices.push(a,b,a+1,b,b+1,a+1)}}}
+ roadGeo.setAttribute('position',new THREE.Float32BufferAttribute(roadVerts,3));roadGeo.setAttribute('uv',new THREE.Float32BufferAttribute(roadUvs,2));roadGeo.setIndex(roadIndices);roadGeo.computeVertexNormals();const roadMesh=new THREE.Mesh(roadGeo,roadMat);roadMesh.receiveShadow=true;group.add(roadMesh);
  const floor=world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(0,-.225,centerZ));world.createCollider(RAPIER.ColliderDesc.cuboid(40,.25,CHUNK_LENGTH/2).setFriction(1.1),floor);bodies.push(floor);
  for(const side of [-1,1]){
-  const x=side*7.35;
-  for(let j=0;j<=8;j++){const post=new THREE.Mesh(new THREE.BoxGeometry(.22,1.45,.22),darkWood);post.position.set(x,.72,centerZ-24+j*6);post.castShadow=true;group.add(post);}
-  for(const y of [.55,1.15]){const rail=new THREE.Mesh(new THREE.BoxGeometry(.18,.18,CHUNK_LENGTH),wood);rail.position.set(x,y,centerZ);rail.castShadow=true;group.add(rail);}
-  for(let j=0;j<8;j++){const reflector=new THREE.Mesh(new THREE.BoxGeometry(.12,.32,.08),gold);reflector.position.set(x-side*.13,.9,centerZ-20+j*5.5);group.add(reflector);}
+  const postPositions=[];
+  for(let j=0;j<=8;j++){const t=j/8,z=centerZ+24-j*6,x=curveX(t)+side*7.35;postPositions.push({x,z});const post=new THREE.Mesh(new THREE.BoxGeometry(.22,1.45,.22),darkWood);post.position.set(x,.72,z);post.castShadow=true;group.add(post);}
+  for(const y of [.55,1.15])for(let j=0;j<postPositions.length-1;j++){const a=postPositions[j],b=postPositions[j+1],dx=b.x-a.x,dz=b.z-a.z,len=Math.hypot(dx,dz);const rail=new THREE.Mesh(new THREE.BoxGeometry(.18,.18,len),wood);rail.position.set((a.x+b.x)/2,y,(a.z+b.z)/2);rail.rotation.y=Math.atan2(dx,dz);rail.castShadow=true;group.add(rail);}
+  for(let j=0;j<8;j++){const t=(j+.5)/8,z=centerZ+24-t*CHUNK_LENGTH,x=curveX(t)+side*7.35;const reflector=new THREE.Mesh(new THREE.BoxGeometry(.12,.32,.08),gold);reflector.position.set(x-side*.13,.9,z);group.add(reflector);}
  }
  // Repeating direction boards and arrows mark the route ahead.
  for(let j=0;j<3;j++){const z=centerZ-18+j*15;const board=new THREE.Mesh(new THREE.BoxGeometry(2.3,.72,.14),red);board.position.set(0,2.35,z);group.add(board);const arrow=new THREE.Mesh(new THREE.ConeGeometry(.32,.72,3),gold);arrow.rotation.z=-Math.PI/2;arrow.position.set(.08,2.35,z-.1);group.add(arrow);}
  // District scenery changes as the player advances, while staying cheap to render.
  const facadeMat=index%3===0?plaster:(index%3===1?wood:mat(0x9a7656));
  for(const side of [-1,1]){
-  const bx=side*(13.8+(index%2)*1.2),bz=centerZ-((index*7)%19);
+  const bz=centerZ-((index*7)%19),bt=(centerZ+24-bz)/CHUNK_LENGTH,bx=curveX(bt)+side*(13.8+(index%2)*1.2);
   const house=new THREE.Group();house.position.set(bx,0,bz);group.add(house);
   const body=new THREE.Mesh(new THREE.BoxGeometry(5.4,4.2,7.2),facadeMat);body.position.y=2.1;body.castShadow=true;body.receiveShadow=true;house.add(body);
   const roofMesh=new THREE.Mesh(new THREE.ConeGeometry(4.5,1.6,4),roof);roofMesh.rotation.y=Math.PI/4;roofMesh.position.y=5;roofMesh.castShadow=true;house.add(roofMesh);
   for(let k=-1;k<=1;k++){const post=new THREE.Mesh(new THREE.BoxGeometry(.13,3.2,.16),darkWood);post.position.set(k*1.45,1.6,3.68);house.add(post);}
   const lanternMesh=new THREE.Mesh(new THREE.BoxGeometry(.65,.8,.65),red);lanternMesh.position.set(0,2.6,4.05);house.add(lanternMesh);
   // A few roadside trees make each streamed section visually distinct.
-  const tx=side*10.5,tz=centerZ+((index*11)%27)-12;
+  const tz=centerZ+((index*11)%27)-12,tx=curveX((centerZ+24-tz)/CHUNK_LENGTH)+side*10.5;
   const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.18,.25,2.1,7),darkWood);trunk.position.set(tx,1.05,tz);group.add(trunk);
   const crown=new THREE.Mesh(new THREE.SphereGeometry(1.25,8,7),mat(index%2?0x3c6948:0x52734c));crown.position.set(tx,2.75,tz);crown.castShadow=true;group.add(crown);
  }
  // Staggered road hazards: every few sections require a deliberate lane change.
- if(index%2===0){const ox=index%4===0?-3.6:3.6,oz=centerZ-13;const crate=new THREE.Mesh(new THREE.BoxGeometry(1.05,.9,1.05),wood);crate.position.set(ox,.45,oz);crate.castShadow=true;group.add(crate);const band=new THREE.Mesh(new THREE.BoxGeometry(1.08,.12,1.08),gold);band.position.set(ox,.76,oz);group.add(band);obstacles.push({x:ox,z:oz,hx:.85,hz:.85});}
- // Pickups: red talisman trips Enma; blue orb charges the player's boost.
+ if(index%2===0){const oz=centerZ-13,ox=curveX((centerZ+24-oz)/CHUNK_LENGTH)+(index%4===0?-3.7:3.7);const crate=new THREE.Mesh(new THREE.BoxGeometry(1.75,1.25,1.55),wood);crate.position.set(ox,.625,oz);crate.castShadow=true;group.add(crate);const band=new THREE.Mesh(new THREE.BoxGeometry(1.79,.16,1.59),gold);band.position.set(ox,.86,oz);group.add(band);obstacles.push({x:ox,z:oz,hx:1.05,hz:1.0});}
+ // Utility poles, crossarms and cables along the bends; poles sit close to the road edge.
+ for(let j=0;j<2;j++){const t=.28+j*.43,z=centerZ+24-t*CHUNK_LENGTH,x=curveX(t)+(j%2===0?-5.35:5.35);const pole=new THREE.Mesh(new THREE.CylinderGeometry(.22,.29,7.2,10),darkWood);pole.position.set(x,3.6,z);pole.castShadow=true;group.add(pole);const arm=new THREE.Mesh(new THREE.BoxGeometry(1.9,.18,.2),wood);arm.position.set(x,6.65,z);group.add(arm);for(const dx of [-.72,.72]){const ins=new THREE.Mesh(new THREE.CylinderGeometry(.08,.08,.42,8),gold);ins.position.set(x+dx,6.92,z);group.add(ins)}obstacles.push({x,z,hx:.62,hz:.62});}
+ // Pickups: red talismans trip Enma; blue orbs charge boost.
  const pickupSpecs=index===0
   ?[{x:0,z:centerZ+53,kind:'slip'},{x:0,z:centerZ+30,kind:'boost'},{x:1.8,z:centerZ+8,kind:'slip'}]
   :[{x:index%2===0?-1.8:1.8,z:centerZ+14,kind:'slip'},{x:0,z:centerZ-2,kind:'boost'},{x:index%2===0?1.8:-1.8,z:centerZ-18,kind:'slip'}];
  for(const spec of pickupSpecs){
-  const g=new THREE.Group();g.position.set(spec.x,1.15,spec.z);group.add(g);
+  const g=new THREE.Group();g.position.set(curveX((centerZ+24-spec.z)/CHUNK_LENGTH)+spec.x,1.15,spec.z);group.add(g);
   const color=spec.kind==='slip'?0xff6848:0x58d8ff;
   const orb=new THREE.Mesh(new THREE.IcosahedronGeometry(.48,2),new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:.65,metalness:.35,roughness:.25}));g.add(orb);
   const ring=new THREE.Mesh(new THREE.TorusGeometry(.68,.075,8,24),new THREE.MeshStandardMaterial({color:spec.kind==='slip'?0xffc06b:0xa9f4ff,emissive:color,emissiveIntensity:.35}));ring.rotation.x=Math.PI/2;g.add(ring);
@@ -228,7 +235,7 @@ function makeRouteChunk(index){
   items.push({group:g,kind:spec.kind,collected:false,baseY:1.15,phase:index*.8+(spec.kind==='slip'?0:1.7)});
  }
  // Route progress marker, visible on the HUD via the current district number.
- const marker=new THREE.Mesh(new THREE.BoxGeometry(2.8,.8,.16),red);marker.position.set(0,2.6,centerZ-CHUNK_LENGTH*.38);group.add(marker);
+ const markerZ=centerZ-CHUNK_LENGTH*.38;const marker=new THREE.Mesh(new THREE.BoxGeometry(2.8,.8,.16),red);marker.position.set(curveX((centerZ+24-markerZ)/CHUNK_LENGTH),2.6,markerZ);group.add(marker);
  return {index,centerZ,group,bodies,obstacles,items};
 }
 function disposeChunk(chunk){
@@ -256,7 +263,7 @@ function checkCollisions(p){
  const ex=1.55*Math.abs(Math.cos(driveYaw))+2.4*Math.abs(Math.sin(driveYaw));
  const ez=1.55*Math.abs(Math.sin(driveYaw))+2.4*Math.abs(Math.cos(driveYaw));
  for(const b of blocks){const [x,z,w,d]=b;if(Math.abs(p.x-x)<w/2+ex*.78&&Math.abs(p.z-z)<d/2+ez*.78){triggerGameOver('建物に衝突した！');return true;}}
- if(Math.abs(p.x)+ex>7.18){triggerGameOver('フェンス・柵に衝突した！コース内を走ろう。');return true;}
+ if(Math.abs(p.x-routeCenterX(p.z))+ex>6.45){triggerGameOver('フェンス・柵に衝突した！カーブに沿って走ろう。');return true;}
  for(const chunk of streamedChunks.values())for(const o of chunk.obstacles){if(Math.abs(p.x-o.x)<o.hx+ex*.45&&Math.abs(p.z-o.z)<o.hz+ez*.45){triggerGameOver('コース上の障害物に衝突した！');return true;}}
  for(const h of hazardMeshes){if(h.kind==='obstacle'&&Math.hypot(p.x-h.group.position.x,p.z-h.group.position.z)<1.65){triggerGameOver('路上の障害物に衝突した！');return true;}}
  return false;
