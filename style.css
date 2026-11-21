@@ -10,10 +10,15 @@
 #help{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);font-size:11px;white-space:nowrap;color:#e5e5e5;background:#101820aa;padding:7px 10px;border-radius:10px}
 #buttons{position:absolute;right:12px;top:86px;display:flex;gap:8px;pointer-events:auto}
 button{border:1px solid #ffffff55;background:#182630dd;color:white;border-radius:10px;padding:10px 12px;font-weight:700}
-#touch{position:absolute;bottom:24px;left:12px;right:12px;display:none;justify-content:space-between;pointer-events:auto}
+#touch{position:absolute;bottom:22px;left:18px;right:18px;display:none;align-items:flex-end;justify-content:flex-start;pointer-events:none}
+#stickBase{width:154px;height:154px;border-radius:50%;border:2px solid #ffffff80;background:radial-gradient(circle,#ffffff18 0 35%,#10182099 36% 100%);box-shadow:0 5px 22px #0008;display:grid;place-items:center;pointer-events:auto;touch-action:none;position:relative}
+#stickBase:before,#stickBase:after{content:"";position:absolute;background:#ffffff25;pointer-events:none}
+#stickBase:before{width:1px;height:78%;top:11%}#stickBase:after{height:1px;width:78%;left:11%}
+#stickKnob{width:62px;height:62px;border-radius:50%;background:linear-gradient(145deg,#e4bd7b,#9d583d);border:2px solid #fff9;box-shadow:0 4px 12px #0009;z-index:1;pointer-events:none;will-change:transform}
+#stickHint{position:absolute;left:178px;bottom:44px;color:#fff;background:#101820aa;border:1px solid #ffffff30;border-radius:10px;padding:8px 10px;font-size:11px;line-height:1.5;text-shadow:0 2px 4px #000}
 .pad{display:flex;gap:8px}.touchbtn{width:62px;height:62px;border-radius:18px;background:#15232ccc;border:1px solid #ffffff55;font-size:20px;touch-action:none}
 #overlay{position:fixed;inset:0;background:#071018dd;display:flex;align-items:center;justify-content:center;color:#fff;padding:22px;text-align:center}
 #overlay .card{max-width:520px;background:#172630;border:1px solid #ffffff35;border-radius:20px;padding:24px}
 #overlay h1{letter-spacing:.18em;margin:0 0 8px}#overlay p{line-height:1.8;color:#d3dce2;font-size:14px}
 #start{background:#b84a31;border:0;padding:13px 24px;font-size:15px}
-@media(max-width:700px){#touch{display:flex}#help{bottom:100px}#buttons{top:auto;bottom:100px;right:12px}.top{top:8px;left:8px;right:8px}.panel{padding:7px 9px}}
+@media(max-width:700px){#touch{display:flex}#help{bottom:12px;left:auto;right:12px;transform:none;font-size:10px}#buttons{top:auto;bottom:190px;right:12px;flex-direction:column}.top{top:8px;left:8px;right:8px}.panel{padding:7px 9px}#stickBase{width:142px;height:142px}#stickKnob{width:58px;height:58px}#stickHint{left:158px;bottom:38px}}
