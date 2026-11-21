@@ -216,10 +216,10 @@ function makeRouteChunk(index){
  // Torii gates appear periodically, with collision on pillars and crossbeam.
  if(index%3===1||index%4===3){
   const gateZ=centerZ-29,gateX=curveX((centerZ+24-gateZ)/CHUNK_LENGTH),toriiRed=mat(0x9b2924,.72),toriiDark=mat(0x38251e,.8);
-  for(const side of [-1,1]){const gx=gateX+side*4.05;const pillar=new THREE.Mesh(new THREE.CylinderGeometry(.34,.42,6.35,12),toriiRed);pillar.position.set(gx,3.15,gateZ);pillar.castShadow=true;group.add(pillar);const foot=new THREE.Mesh(new THREE.CylinderGeometry(.55,.55,.28,12),toriiDark);foot.position.set(gx,.16,gateZ);group.add(foot);obstacles.push({x:gx,z:gateZ,hx:.48,hz:.62,kind:'toriiPost'});}
-  const lintel=new THREE.Mesh(new THREE.BoxGeometry(9.7,.48,.72),toriiRed);lintel.position.set(gateX,6.48,gateZ);lintel.castShadow=true;group.add(lintel);
-  const topBeam=new THREE.Mesh(new THREE.BoxGeometry(10.8,.34,1.05),toriiDark);topBeam.position.set(gateX,6.88,gateZ);topBeam.castShadow=true;group.add(topBeam);
-  obstacles.push({x:gateX,z:gateZ,hx:5.35,hz:.72,kind:'toriiBeam',bottom:6.24});
+  for(const side of [-1,1]){const gx=gateX+side*4.05;const pillar=new THREE.Mesh(new THREE.CylinderGeometry(.34,.42,7.05,12),toriiRed);pillar.position.set(gx,3.525,gateZ);pillar.castShadow=true;group.add(pillar);const foot=new THREE.Mesh(new THREE.CylinderGeometry(.55,.55,.28,12),toriiDark);foot.position.set(gx,.16,gateZ);group.add(foot);obstacles.push({x:gx,z:gateZ,hx:.48,hz:.62,kind:'toriiPost'});}
+  const lintel=new THREE.Mesh(new THREE.BoxGeometry(9.7,.48,.72),toriiRed);lintel.position.set(gateX,7.05,gateZ);lintel.castShadow=true;group.add(lintel);
+  const topBeam=new THREE.Mesh(new THREE.BoxGeometry(10.8,.34,1.05),toriiDark);topBeam.position.set(gateX,7.45,gateZ);topBeam.castShadow=true;group.add(topBeam);
+  obstacles.push({x:gateX,z:gateZ,hx:5.35,hz:.72,kind:'toriiBeam',bottom:6.81});
  }
  // Small ramps launch the float when crossed at speed.
  const jumpZ=centerZ-7,jumpX=curveX(.65);
