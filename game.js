@@ -149,7 +149,7 @@ const head=new THREE.Mesh(new THREE.SphereGeometry(.85,20,16),mat(0x762c25));hea
 for(const x of [-.38,.38]){const eye=new THREE.Mesh(new THREE.SphereGeometry(.13,12,8),eyeMat);eye.position.set(x,4.2,.73);demon.add(eye);const horn=new THREE.Mesh(new THREE.ConeGeometry(.23,1,12),hornMat);horn.position.set(x*1.6,5.1,0);horn.rotation.z=x<0?.25:-.25;demon.add(horn)}
 box(demon,0,3.1,.95,1.2,.24,.15,mat(0xb18c3e));
 const worldMap={};
-let chaseDistance=32,camMode=0,started=false,gameOver=false,elapsed=0,shake=0,travelDistance=0,escaped=false,enmaStarted=false;
+let chaseDistance=35,camMode=0,started=false,gameOver=false,elapsed=0,shake=0,travelDistance=0,escaped=false,enmaStarted=false;
 const streamedChunks=new Map();const CHUNK_LENGTH=48,CHUNK_BEHIND=1;
 let renderDistance=2; // Loaded route sections ahead, adjustable like Minecraft view distance.
 const renderDistanceSelect=document.querySelector('#renderDistance');
@@ -182,9 +182,9 @@ function toggleCamera(){camMode=(camMode+1)%4;document.querySelector('#camera').
 
 document.querySelector('#camera').onclick=toggleCamera;
 document.querySelector('#boostButton').onclick=activateBoost;
-function reset(){for(const chunk of streamedChunks.values())disposeChunk(chunk);streamedChunks.clear();driveSpeed=0;driveYaw=0;sideSlip=0;bodyLean=0;jumpHeight=0;jumpVelocity=0;boostCharge=0;boostTime=0;stumbleTime=0;debuffTime=0;travelDistance=0;escaped=false;for(const k in keys)keys[k]=false;releaseStick();floatBody.setTranslation({x:0,y:1.8,z:22},true);floatBody.setLinvel({x:0,y:0,z:0},true);floatBody.setAngvel({x:0,y:0,z:0},true);floatBody.setRotation({x:0,y:0,z:0,w:1},true);float.rotation.set(0,0,0);floatUpper.rotation.set(0,0,0);chaseDistance=32;enmaStarted=false;demon.visible=true;elapsed=0;gameOver=false;demon.position.set(0,0,56);document.querySelector('#overlay').style.display='none';document.querySelector('#overlay h1').textContent='祭走';document.querySelector('#start').textContent='出走する';document.querySelector('#status').textContent='順路の矢印に従って進もう';started=true}
+function reset(){for(const chunk of streamedChunks.values())disposeChunk(chunk);streamedChunks.clear();driveSpeed=0;driveYaw=0;sideSlip=0;bodyLean=0;jumpHeight=0;jumpVelocity=0;boostCharge=0;boostTime=0;stumbleTime=0;debuffTime=0;travelDistance=0;escaped=false;for(const k in keys)keys[k]=false;releaseStick();floatBody.setTranslation({x:0,y:1.8,z:22},true);floatBody.setLinvel({x:0,y:0,z:0},true);floatBody.setAngvel({x:0,y:0,z:0},true);floatBody.setRotation({x:0,y:0,z:0,w:1},true);float.rotation.set(0,0,0);floatUpper.rotation.set(0,0,0);chaseDistance=35;enmaStarted=false;demon.visible=true;elapsed=0;gameOver=false;demon.position.set(0,0,57);document.querySelector('#overlay').style.display='none';document.querySelector('#overlay h1').textContent='祭走';document.querySelector('#start').textContent='出走する';document.querySelector('#status').textContent='順路の矢印に従って進もう';started=true}
 document.querySelector('#reset').onclick=reset;document.querySelector('#start').onclick=reset;
-demon.position.set(0,0,56);demon.visible=true;
+demon.position.set(0,0,57);demon.visible=true;
 const clock=new THREE.Clock();
 const tmp=new THREE.Vector3();
 // Baked-looking individual stone paving, batched for mobile performance.
